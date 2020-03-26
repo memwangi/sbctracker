@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Sbc Tracker</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="queryHint">Search...</string>
+    <string name="search">Search...</string>
+    <string name="ItemNotFound">Item not found. Enter the item details to register.</string>
+</resources>
