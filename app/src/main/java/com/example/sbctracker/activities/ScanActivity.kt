@@ -1,294 +1,324 @@
 package com.example.sbctracker.activities
 
 import android.app.Activity
+import android.content.ContentUris
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.database.Cursor
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
+import android.net.NetworkInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
-import android.widget.Toast
+import android.text.Editable
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
+import com.bumptech.glide.Glide
 import com.example.sbctracker.R
-import com.google.gson.Gson
+import com.example.sbctracker.models.Machine
+import com.example.sbctracker.viewmodel.LastLocationViewModel
+import com.example.sbctracker.viewmodel.MachineViewModel
+import com.example.sbctracker.viewmodel.UserViewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.android.synthetic.main.activity_home.*
 import kotlinx.android.synthetic.main.activity_scan.*
 import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
-import org.json.JSONObject
+import org.joda.time.DateTime
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
+import java.util.regex.Pattern
 
-class ScanActivity : AppCompatActivity() {
-    private val client = OkHttpClient()
-    private val gson = Gson()
-    private var barcode = ""
-    private val PICK_IMAGE_REQUEST = 71
-    private var filePath: String = ""
-    var coordinates = HashMap<String, Any?>()
-    var REQUEST_IMAGE_CAPTURE = 1
-    var REQUEST_TAKE_PHOTO = 1
-    lateinit var currentPhotoPath: String
+
+class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
+    private lateinit var barcode: String
+    var REQUEST_TAKE_PHOTO = 2
+    private var filePath: String? = null
+    private lateinit var IMEI: String
+    private lateinit var machineViewModel: MachineViewModel
+    private lateinit var userViewModel: UserViewModel
+    private lateinit var lastLocationViewModel: LastLocationViewModel
+    private lateinit var latitude: String
+    private lateinit var longitude: String
+    private lateinit var mProgressBar: ProgressBar
+    private lateinit var mSpinner: Spinner
+    private lateinit var customerType: String
+    private lateinit var spinnerAdapter: SpinnerAdapter
+    private lateinit var supervisorID: String
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan)
 
-        // Set toolbar
+        userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
+        lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
 
-        var intent = intent
+        machineViewModel = ViewModelProvider(this).get(MachineViewModel::class.java)
+        userViewModel.user.observe(this@ScanActivity, Observer {
+            it?.let {
+                supervisorID = it.id.toString()
+            }
+        })
+
+        lastLocationViewModel.lastLocation.observe(this, Observer {
+            it?.let {
+                longitude = it.longitude
+                latitude = it.latitude
+            }
+        })
+        mProgressBar = progressBar
+        // Get information task details from intent
+        IMEI = intent.getStringExtra("imei")
         barcode = intent.getStringExtra("Result")
 
-        coordinates["Latitude"] = intent.getStringExtra("latitude")
-        coordinates["Longitude"] = intent.getStringExtra("longitude")
+        itemIdentifier.text = barcode
 
-        var locationDetails = gson.toJson(coordinates)
 
-        // Check if scan is successfull and get details of the item
-        if (locationDetails != null) {
-            getItemDetails(barcode, locationDetails)
+        // Spinner
+        mSpinner = typeSpinner
+        spinnerAdapter = setUpSpinnerAdapter()
+        mSpinner.adapter = spinnerAdapter
+        mSpinner.onItemSelectedListener = this
+
+
+
+        btnCancel.setOnClickListener {
+            onBackPressed()
         }
+
 
         btnSubmit.setOnClickListener {
+
             // Post the item details as a new item
-            var data = getFormDetails(intent.getStringExtra("latitude"), intent.getStringExtra("longitude"))
-            PostNewItem(data)
+            if (!locationPhone.text.isNullOrEmpty() or locationName.text.isNullOrEmpty() && !description.text.isNullOrEmpty()) {
+                if (isPhoneValid(locationPhone.text)) {
+                    // Clear the error
+                    locationPhone.error = null
+                    addMachine(latitude, longitude, supervisorID)
+
+
+                } else {
+                    locationPhone.error = "Please enter a correct phone number e.g 0712300000"
+                }
+
+            } else {
+                Toast.makeText(
+                    this,
+                    "All fields are required. Please fill all entries.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
 
-        // Select Image
-        addImage.setOnClickListener { launchGallery() }
-
-        takePhoto.setOnClickListener {
-            dispatchTakePictureIntent()
+        // Launch dialog to select from gallery or take photo
+        uploadImgBtn.setOnClickListener {
+            takePhoto()
         }
 
+    }
+
+    private fun isPhoneValid(text: Editable?): Boolean {
+        var pattern =
+            Pattern.compile("^(?:254|\\+254|0)?(7(?:(?:[0-9][0-9])|(?:0[0-8])|(?:9[0-2]))[0-9]{6})$")
+        var matcher = pattern.matcher(text!!)
+        var valid = false
+        if (matcher.matches() && text!!.length in 10..13) {
+            valid = true
+        }
+        return valid
+    }
+
+
+    private fun setUpSpinnerAdapter(): SpinnerAdapter {
+        //Array adapter
+        var adapter = ArrayAdapter.createFromResource(
+            this,
+            R.array.userType,
+            android.R.layout.simple_spinner_item
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+        return adapter
+
+    }
+
+    override fun onNothingSelected(p0: AdapterView<*>?) {
+        Toast.makeText(this, "Select customer type", Toast.LENGTH_LONG).show()
+
+    }
+
+    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+        customerType = mSpinner.selectedItem as String
+    }
+
+
+    override fun onBackPressed() {
+        var intent = Intent(this, HomeActivity::class.java)
+        startActivity(intent)
+        super.onBackPressed()
 
     }
 
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK) {
-            if(data == null || data.data == null){
-                return
-            }
-            var data1 = data.data
-            filePath = data1.toString()
-
-            var imagePath = data.data
-            try {
-                val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, imagePath)
-                uploadImage.setImageBitmap(bitmap)
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-
-        //Image capture by taking photo
         if (requestCode == REQUEST_TAKE_PHOTO && resultCode == Activity.RESULT_OK) {
-            val imageBitmap = data?.extras!!.get("data") as Bitmap
-
-            // Inflate image to imageView
-            uploadImage.setImageBitmap(imageBitmap)
+            checkReadPermissions()
+            // Fetch selected image
+            Glide.with(this).load(filePath).fitCenter().into(uploadImage);
         }
     }
 
-    private fun dispatchTakePictureIntent() {
-        Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
-            takePictureIntent.resolveActivity(packageManager)?.also {
-                // Create the File where the photo should go
-                val photoFile: File? = try {
-                    createImageFile()
-                } catch (ex: IOException) {
-                    ex.printStackTrace()
-                    null
-                }
-                // Continue if the file was successfully created
-                photoFile?.also {
-                    val photoUri: Uri = FileProvider.getUriForFile(
-                        this,
-                        "com.example.sbctracker.fileprovider",
-                        photoFile
-                    )
-                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
-                }
-                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO)
-            }
-        }
-    }
 
-    // Create image file to store in phone storage
-    // Updated the manifest so that the images can only stay native to the app
-    @Throws(IOException::class)
-    private fun createImageFile(): File {
-        // Create an image file name
-        val timestamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        val imageName = "JPEG_${timestamp}_"
+    private fun addMachine(latitude: String, longitude: String, supervisorID: String) {
 
-        var image = File.createTempFile(imageName, ".jpg", storageDir)
+        var dateTimeNow = DateTime.now()
 
-        currentPhotoPath = image.absolutePath
-        return  image
-    }
+        // Stores time in milliseconds since epoch for accuracy
+        if (!filePath.isNullOrBlank()) {
+            var machine = filePath?.let {
+                Machine(
+                    0,
+                    locationName.editableText.toString(),
+                    locationPhone.editableText.toString(),
+                    description.editableText.toString(),
+                    barcode,
+                    customerType,
+                    longitude,
+                    latitude,
+                    dateTimeNow.millis,
+                    it,
+                    IMEI,
+                    false,
+                    supervisorID
+                )
 
-    private fun galleryAddPic() {
-        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
-            val f = File(currentPhotoPath)
-            mediaScanIntent.data = Uri.fromFile(f)
-            sendBroadcast(mediaScanIntent)
-        }
-    }
-
-    private fun launchGallery() {
-        val intent = Intent()
-        intent.type = "image/*"
-        intent.action = Intent.ACTION_GET_CONTENT
-        startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_REQUEST)
-    }
-
-    // Gets the results from the url and parses them into JSON
-    private fun getItemDetails(barcode: String, locationDetails: String) {
-        val baseUrl = "http://165.22.51.149:3000/push/barcode/${barcode}"
-
-        val request = Request.Builder().url(baseUrl).build()
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                e.printStackTrace()
             }
 
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                var result = response?.body?.string()
-                var jsonObject = JSONObject(result)
-                var response = jsonObject.getBoolean("response")
+            // Create new machine
+            if (machine != null) {
 
-                this@ScanActivity.runOnUiThread(java.lang.Runnable {
-                    if (response) {
-                        // If there is a response, update the UI with details of the scanned item
-                        var resultData = jsonObject.getJSONObject("data")
-                        itemDescription.setText(resultData.getString("description"))
-                        itemIdentifier.setText(resultData.getString("code"))
-                        itemName.setText(resultData.getString("name"))
+                var connectivityManager =
+                    getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
 
-                        var longitude = resultData.getString("longitude")
-                        // Check item location from the scanned results
-                        if (longitude != null) {
-                            // If item already has a location update it's details
-                            updateItem(locationDetails, barcode)
+                if (activeNetwork?.isConnected != null) {
+                    progressBar.visibility = View.VISIBLE
+                    machineViewModel.insert(machine)
+                    machineViewModel.postNewItem(machine)
+                    machineViewModel.toastMesage.observe(this, Observer { it ->
+                        it.getContentIfNotHandled()?.let {
+                            if (it) {
+                                Toast.makeText(this, "Uploaded successfully.", Toast.LENGTH_LONG)
+                                    .show()
+                                uploadImage.setImageResource(R.drawable.ic_camera)
+                                locationName.text = null
+                                locationPhone.text = null
+                                description.text = null
+                                progressBar.visibility = View.GONE
+                                onNavigateUp()
+                            } else {
+                                uploadImage.setImageResource(R.drawable.ic_camera)
+                                locationName.text = null
+                                locationPhone.text = null
+                                description.text = null
+                                Toast.makeText(
+                                    this,
+                                    "Failed. This barcode already exists.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                onNavigateUp()
+                            }
+
                         }
-                    } else {
-                        location.setText(getString(R.string.ItemNotFound))
-                        itemIdentifier.setText(barcode)
-
-                    }
-
-                })
-            }
-        })
-    }
-
-    // Gets the results from the url and parses them into JSON
-    private fun updateItem(coordinates: String, barcode: String) {
-        val formBody = FormBody.Builder()
-            .add("location", coordinates)
-            .build()
-        val request = Request.Builder()
-            .url("http://165.22.51.149:3000/push/barcode/${barcode}")
-            .put(formBody)
-            .build()
-        client.newCall(request).enqueue( object: Callback {
-            override fun onFailure(call: Call, e: java.io.IOException) {
-                println("Failed to post request")
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                var result = response.body?.string()
-                println(result)
-            }
-
-        })
-
-    }
-
-    private fun PostNewItem(itemDetails: String) {
-
-        val file = File(filePath.toString())
-        val image = file.asRequestBody("image/png".toMediaTypeOrNull())
-        if (filePath != null) {
-
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("data", itemDetails)
-                .addFormDataPart("file", filePath.toString(), image)
-                .build()
-
-            val request = Request.Builder()
-                .url("http://165.22.51.149:3000/push/barcode/")
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    e.printStackTrace()
+                    })
+                } else {
+                    progressBar.visibility = View.VISIBLE
+                    machineViewModel.insert(machine)
+                    progressBar.visibility = View.GONE
+                    Toast.makeText(
+                        this,
+                        "Saved successfully. Will upload once there's an internet connection.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                override fun onResponse(call: Call, response: Response) {
-                    println(response.body?.string())
-                }
-            })
+
+            }
+
         } else {
-            Toast.makeText(this@ScanActivity, "Not working", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this@ScanActivity,
+                "Please select or add a photo",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
-    private fun getFormDetails(latitude: String, longitude: String): String {
-        // Get item details
-        var postDetails = HashMap<String,Any?>()
 
-        postDetails["name"] = itemName.editableText.toString()
-        postDetails["description"] = itemDescription.editableText.toString()
-        postDetails["code"] = itemIdentifier.editableText.toString()
-        postDetails["latitude"] = latitude
-        postDetails["longitude"] = longitude
-
-        var jsonified = JSONObject(postDetails)
-        return jsonified.toString()
-
+    private fun takePhoto() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (takePictureIntent.resolveActivity(packageManager) != null) {
+            var capturedImage: File? = null
+            try {
+                capturedImage = createImageFile()
+            } catch (ex: IOException) {
+                ex.printStackTrace()
+            }
+            if (capturedImage != null) {
+                var photoURI =
+                    FileProvider.getUriForFile(
+                        this,
+                        "com.example.sbctracker.provider",
+                        capturedImage
+                    );
+                takePictureIntent.putExtra(
+                    MediaStore.EXTRA_OUTPUT,
+                    photoURI
+                );
+                startActivityForResult(
+                    takePictureIntent,
+                    REQUEST_TAKE_PHOTO
+                );
+            }
+        }
     }
 
-//    private fun uploadImage() {
-//        if (filePath != null) {
-//            val file = File(filePath.toString())
-//            val image = file.asRequestBody("image/png".toMediaTypeOrNull())
-//
-//            val requestBody = MultipartBody.Builder()
-//                .setType(MultipartBody.FORM)
-//                .addFormDataPart("barcode", barcode)
-//                .addFormDataPart("file", filePath.toString(), image)
-//                .build()
-//
-//            val request = Request.Builder()
-//                .url("http://165.22.51.149:3000/push/barcode/")
-//                .post(requestBody)
-//                .build()
-//
-//            client.newCall(request).enqueue(object : Callback {
-//                override fun onFailure(call: Call, e: IOException) {
-//                    println("Failed to send image")
-//                }
-//
-//                override fun onResponse(call: Call, response: Response) {
-//                    Toast.makeText(this@ScanActivity, "working", Toast.LENGTH_LONG).show()
-//                }
-//            })
-//        }
-//
-//        }
+
+    private fun createImageFile(): File? {
+        // Create an image file name
+        val timeStamp: String = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
+        val mFileName = "JPEG_${barcode}" + timeStamp + "_"
+        val storageDir =
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        var image: File = File.createTempFile(mFileName, ".jpg", storageDir)
+        filePath = image.getAbsolutePath();
+        return image;
+    }
+
+    private fun checkReadPermissions(): Boolean {
+        var ps = arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        var rc = ActivityCompat.checkSelfPermission(this, ps[0])
+        if (rc != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, ps, 0)
+            return true
+        } else {
+            return false
+        }
+    }
 
 }
 

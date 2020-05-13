@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "925857027038",
+    "firebase_url": "https://sbctracker-4f504.firebaseio.com",
+    "project_id": "sbctracker-4f504",
+    "storage_bucket": "sbctracker-4f504.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925857027038:android:7af99d3c469794039e434f",
+        "android_client_info": {
+          "package_name": "com.example.sbctracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "925857027038-2do4107lntvu6ua9hogvq1br8i1lhrc4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlL_Qbs85uaXAMxYDcQ_HFWW6SM-8j_zc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "925857027038-2do4107lntvu6ua9hogvq1br8i1lhrc4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
