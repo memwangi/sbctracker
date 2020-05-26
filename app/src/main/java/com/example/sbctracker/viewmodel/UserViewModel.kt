@@ -154,14 +154,14 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     override fun onResponse(call: Call<String>, response: Response<String>) {
-                        Log.i("User login","""Response: ${response.code()} ${response.body().toString()}""")
-                        if (response.code() == 200) {
+                        Log.i("User logout","""Response: ${response.code()} ${response.body().toString()}""")
+                        if (response.isSuccessful) {
                             requestMessage(true)
 
                         }
-                        else { requestMessage(false)
+                        else {
+                            requestMessage(false)
                         }
-
                     }
 
                 })

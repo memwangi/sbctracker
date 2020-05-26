@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.widget.Toast
 import android.widget.Toolbar
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -125,8 +126,6 @@ class HomeActivity : AppCompatActivity() {
         // Handle item selection
         return when (item.itemId) {
             R.id.logout -> {
-                // Set LoggedIn status to false
-                SaveSharedPreference.setLoggedIn(applicationContext, false);
                 logout()
                 true
             }
@@ -178,9 +177,23 @@ class HomeActivity : AppCompatActivity() {
 
     private fun logout() {
         stopWorker()
-        val intent = Intent(applicationContext, LoginActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+        userViewModel.logout(identifier)
+        userViewModel.toastMesage.observe(this, Observer { it ->
+            it.getContentIfNotHandled()?.let {
+                if (it) {
+                    // Set LoggedIn status to false
+                    SaveSharedPreference.setLoggedIn(applicationContext, false)
+                    val intent = Intent(applicationContext, LoginActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                } else {
+                    Toast.makeText(
+                        applicationContext, "Failed. Please try again",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        })
     }
 
     override fun onBackPressed() {

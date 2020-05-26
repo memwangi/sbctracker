@@ -29,7 +29,7 @@ interface TraceNetworkService {
     @POST("push/staff")
     fun login(@Header("security_key") key: String, @Body request: RequestBody): Call<String>
 
-    @POST("push/staff")
+    @PUT("push/staff_logout")
     fun logout(@Header("security_key") key: String, @Body request: RequestBody): Call<String>
 }
 
