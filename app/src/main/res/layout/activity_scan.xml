@@ -38,8 +38,8 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/proxima"
                     android:text="TextView"
-                    android:textStyle="bold"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                    android:textStyle="bold"
                     tools:text="98325232445" />
 
 
@@ -79,41 +79,45 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/uploadImageLayout">
 
-            <LinearLayout
+            <com.chivorn.smartmaterialspinner.SmartMaterialSpinner
+                android:id="@+id/typeSpinner"
+                style="@android:style/Widget.Material.Light.Spinner"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                >
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/proxima"
-                    android:text="@string/customerType"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                    android:textStyle="bold" />
+                app:smsp_floatingLabelColor="@color/colorPrimary"
+                app:smsp_floatingLabelText="Category"
+                app:smsp_hint="Select Category"
+                app:smsp_hintColor="@color/quantum_black_hint_text"
+                app:smsp_hintSize="15sp"
+                app:smsp_itemColor="@color/quantum_black_hint_text"
+                app:smsp_itemListColor="@color/quantum_black_text"
+                app:smsp_multilineError="false"
+                app:smsp_selectedItemListColor="@color/colorPrimary"
+                app:smsp_typeface="proximanovaemibold.ttf" />
 
-                <Spinner
-                    android:id="@+id/typeSpinner"
-                    style="@android:style/Widget.Material.Light.Spinner"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
-                    android:layout_marginRight="16dp"
-                    android:layout_marginBottom="16dp"
-                    android:prompt="@string/customerType"
-                    android:spinnerMode="dropdown" />
-
-            </LinearLayout>
-
-
+            <com.chivorn.smartmaterialspinner.SmartMaterialSpinner
+                android:id="@+id/channelSpinner"
+                style="@android:style/Widget.Material.Light.Spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:smsp_floatingLabelColor="@color/colorPrimary"
+                app:smsp_floatingLabelText="Channel"
+                app:smsp_hint="Select Channel"
+                app:smsp_hintColor="@color/quantum_black_hint_text"
+                app:smsp_hintSize="15sp"
+                app:smsp_itemColor="@color/quantum_black_hint_text"
+                app:smsp_itemListColor="@color/quantum_black_text"
+                app:smsp_multilineError="false"
+                app:smsp_selectedItemListColor="@color/colorPrimary"
+                app:smsp_typeface="proximanovaemibold.ttf" />
 
 
             <com.google.android.material.textfield.TextInputLayout
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:hintAnimationEnabled="true"
                 android:hint="Name"
+                app:hintAnimationEnabled="true"
                 app:hintEnabled="true">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -127,8 +131,8 @@
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:hintAnimationEnabled="true"
                 android:hint="Phone Number"
+                app:hintAnimationEnabled="true"
                 app:hintEnabled="true">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -138,24 +142,6 @@
                     android:inputType="number"
                     android:textColorHint="@color/colorPrimaryDark" />
             </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:hintAnimationEnabled="true"
-                android:hint="Channel"
-                app:hintEnabled="true">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/description"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColorHint="@color/colorPrimaryDark"
-                    android:maxLines="5"
-                    android:minLines="3"/>
-            </com.google.android.material.textfield.TextInputLayout>
-
 
         </LinearLayout>
 

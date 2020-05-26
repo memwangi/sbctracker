@@ -37,6 +37,7 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.joda.time.DateTime
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -50,7 +51,8 @@ class DeviceConfirmActivity : AppCompatActivity() {
     private val client = OkHttpClient()
     private lateinit var latitude: String
     private lateinit var longitude: String
-    private lateinit var IMEI: String
+    private lateinit var identifier: String
+    private lateinit var supervisorID: String
     private lateinit var machineViewModel: MachineViewModel
     private lateinit var userViewModel: UserViewModel
     private lateinit var lastLocationViewModel: LastLocationViewModel
@@ -68,31 +70,28 @@ class DeviceConfirmActivity : AppCompatActivity() {
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
         lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
 
+        barcode = intent.getStringExtra("Result")
+        identifier = intent.getStringExtra("identifier")
+        supervisorID = intent.getStringExtra("superID")
+
+
         lastLocationViewModel.lastLocation.observe(this, Observer {
-            it?.let {
+            if(it != null) {
                 longitude = it.longitude
                 latitude = it.latitude
-            }
-        })
-        barcode = intent.getStringExtra("Result")
-        IMEI = intent.getStringExtra("imei")
-
-        // If this intent carries taskDetails
-
-
-        userViewModel.user.observe(this@DeviceConfirmActivity, Observer {
-            it?.let {
-
-                var data = serializeData(barcode, latitude, longitude, IMEI, it.id)
+                var data = serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
                 if (checkNetworkConnectivity()) {
                     getItemDetails(barcode, data)
                 } else {
                     notFoundTextView.setText("Failed to connect. Please check your internet and try again.")
                     notFoundTextView.visibility = View.VISIBLE
                 }
-
+            } else {
+                Toast.makeText(this, "Please wait as we fetch your current location", Toast.LENGTH_LONG).show()
             }
+
         })
+
 
         btnCancel.setOnClickListener {
             onBackPressed()
@@ -104,19 +103,20 @@ class DeviceConfirmActivity : AppCompatActivity() {
             if (filePath != null) {
 
                 mProgressBar.visibility = View.VISIBLE
-                machineViewModel.updateStockImage(filePath!!, barcode, IMEI)
+                var data = serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
+                machineViewModel.updateStockImage(filePath!!, barcode, data)
 
                 machineViewModel.toastMesage.observe(this, Observer { it ->
                     it.getContentIfNotHandled()?.let {
-                        if (it) {
-                            Toast.makeText(this, "Update successful", Toast.LENGTH_LONG).show()
+                        if (it.containsKey(true)) {
+                            Toast.makeText(this, it[true], Toast.LENGTH_LONG).show()
                             mProgressBar.visibility = View.GONE
                             onBackPressed()
                         } else {
                             mProgressBar.visibility = View.GONE
                             Toast.makeText(
                                 this,
-                                "Failed.",
+                                it[false],
                                 Toast.LENGTH_LONG
                             ).show()
                             onBackPressed()
@@ -192,20 +192,15 @@ class DeviceConfirmActivity : AppCompatActivity() {
 // If item not found, prompts the user to enter details manually
     private fun getItemDetails(barcode: String, data: String) {
         val baseUrl = "http://165.22.51.149:4000/push/barcode/${barcode}"
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("data", data)
-            .build()
-        val request = Request.Builder().url(baseUrl).put(requestBody).build()
+        val request = Request.Builder().url(baseUrl).get().build()
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 e.printStackTrace()
                 this@DeviceConfirmActivity.runOnUiThread {
-
                     allDetails.visibility = View.GONE
                     notFoundTextView.visibility = View.VISIBLE
-                    notFoundTextView.setText("Failed. Please check your connection and try again.")
+                    notFoundTextView.setText("Failed. Please check your connection or try again.")
                 }
 
             }
@@ -232,7 +227,6 @@ class DeviceConfirmActivity : AppCompatActivity() {
                         allDetails.visibility = View.GONE
                         notFoundTextView.visibility = View.VISIBLE
                         notFoundTextView.setText(R.string.ItemDoesNotExist)
-
                     }
                 }
             }
@@ -246,9 +240,11 @@ class DeviceConfirmActivity : AppCompatActivity() {
         imei: String,
         id: Long
     ): String {
+        var currentTime = DateTime.now()
         var map = HashMap<String, Any>()
 
         map["barcode"] = barcode
+        map["time"] = currentTime
         map["latitude"] = latitude
         map["longitude"] = longitude
         map["imei"] = imei

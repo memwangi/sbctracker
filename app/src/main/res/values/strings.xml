@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SBC Tracker</string>
+    <string name="app_name">SBC Kenya</string>
     <string name="title_activity_maps">GLN Trace</string>
     <string name="title_activity_scan">Scan Results</string>
     <string name="title_activity_tasks">Tasks</string>
@@ -9,13 +9,8 @@
     <string name="ItemDoesNotExist">Item does not exist. Please register it as a new item, or confirm with the supervisor.</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="itemNotFoundString">\" If still not available, we\'re working on it :)\"</string>
-
-    <string-array name="userType">
-        <item>Distributor</item>
-        <item>Stockist</item>
-        <item>Retailer</item>
-    </string-array>
     <string name="customerType">Select Category:</string>
+    <string name="channel">Select Channel:</string>
     <string name="stockStatus">Add Cooler Photo.</string>
     <string name="title_activity_login">Sign in</string>
     <string name="prompt_email">Email</string>

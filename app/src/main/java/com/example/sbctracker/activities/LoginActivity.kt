@@ -3,31 +3,28 @@ package com.example.sbctracker.activities
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.Bundle
-import android.telephony.TelephonyManager
 import android.text.Editable
 import android.view.View
-import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.example.sbctracker.R
 import com.example.sbctracker.utils.SaveSharedPreference
+import com.example.sbctracker.utils.UniqueDeviceID
 import com.example.sbctracker.viewmodel.UserViewModel
-import kotlinx.android.synthetic.main.activity_home.*
 import kotlinx.android.synthetic.main.activity_login.*
 import java.util.regex.Pattern
 
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var userViewModel: UserViewModel
+    private lateinit var phone: String
 
     companion object {
         private const val REQUEST_PHONE_STATE = 101
@@ -39,45 +36,55 @@ class LoginActivity : AppCompatActivity() {
         setContentView(R.layout.activity_login)
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
 
-        getIMEI()
 
         // Check if UserResponse is Already Logged In
         if (SaveSharedPreference.getLoggedStatus(applicationContext)) {
             val intent = Intent(applicationContext, HomeActivity::class.java)
             startActivity(intent)
         } else {
-            loginForm.setVisibility(View.VISIBLE)
+            loginForm.visibility = View.VISIBLE
         }
 
         login.setOnClickListener {
             // Post the item details as a new item
             if (!userphone.text.isNullOrEmpty() and !password_edit_text.text.isNullOrEmpty()) {
                 if (isPhoneValid(userphone.text)) {
+                    phone = userphone.text.toString()
                     // Clear the error
                     userphone.error = null
-                    userViewModel.userLogin(
-                        userphone.text.toString(),
-                        password_edit_text.text.toString()
-                    )
-                    userViewModel.toastMesage.observe(this, Observer { it ->
-                        it.getContentIfNotHandled()?.let {
-                            if (it) {
-                                // Set Logged In statue to 'true'
-                                SaveSharedPreference.setLoggedIn(applicationContext, true)
-                                val intent =
-                                    Intent(applicationContext, HomeActivity::class.java)
-                                startActivity(intent)
-                                finish()
-                            } else {
-                                Toast.makeText(
-                                    applicationContext, "Credentials are not Valid.",
-                                    Toast.LENGTH_SHORT
-                                ).show();
+                    var connectivityManager =
+                        getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                    val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
+
+                    if (activeNetwork?.isConnected != null) {
+
+                        userViewModel.userLogin(
+                            userphone.text.toString(),
+                            password_edit_text.text.toString()
+                        )
+                        userViewModel.toastMesage.observe(this, Observer { it ->
+                            it.getContentIfNotHandled()?.let {
+                                if (it) {
+                                    // Set Logged In statue to 'true'
+                                    SaveSharedPreference.setLoggedIn(applicationContext, true)
+
+                                    // Get user details
+                                    getUserDetails(phone)
+                                } else {
+                                    Toast.makeText(
+                                        applicationContext, "Failed. Please enter the correct phone number and password.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
-                        }
-                    })
-
-
+                        })
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Please connect to an active network to continue",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 } else {
                     userphone.error = "Please enter a correct phone number e.g 0712300000"
                 }
@@ -90,35 +97,27 @@ class LoginActivity : AppCompatActivity() {
                 ).show()
             }
         }
-
-
     }
 
 
-    private fun getIMEI() {
+    private fun getUserDetails(phone: String) {
 
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_PHONE_STATE
-            ) != PackageManager.PERMISSION_GRANTED
+            ) == PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.READ_PHONE_STATE),
-                LoginActivity.REQUEST_PHONE_STATE
-            )
-        } else {
-            val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            val IMEI = tel.imei
+            val identifier =  phone
+            // Add phone number to shared preferences
+            UniqueDeviceID.setID(this, identifier)
 
             var connectivityManager =
                 getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
-
             if (activeNetwork?.isConnected != null) {
-                IMEI?.let {
-                    userViewModel.refreshUser(it)
-                }
+                userViewModel.refreshUser(identifier)
+                val intent = Intent(applicationContext, HomeActivity::class.java)
+                startActivity(intent)
             } else {
                 Toast.makeText(
                     this,
@@ -127,6 +126,13 @@ class LoginActivity : AppCompatActivity() {
                 ).show()
 
             }
+        }
+        else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.READ_PHONE_STATE),
+                LoginActivity.REQUEST_PHONE_STATE
+            )
         }
 
     }
@@ -141,5 +147,21 @@ class LoginActivity : AppCompatActivity() {
         }
         return valid
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_PHONE_STATE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Once user grants permission to access the location, get the user details
+                getUserDetails(phone)
+            }
+        }
+
+    }
 }
+
 

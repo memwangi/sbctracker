@@ -17,4 +17,7 @@ interface UserDao {
     @Query("SELECT * FROM table_user WHERE id= (SELECT MAX(id) FROM table_user)")
     fun getUserDetails(): LiveData<User>
 
+    @Query("SELECT * FROM table_user WHERE id= (SELECT MAX(id) FROM table_user)")
+    fun getUserPhone(): User
+
 }

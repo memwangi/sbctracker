@@ -1,8 +1,8 @@
 package com.example.sbctracker.viewmodel
 
 import android.app.Application
+import android.text.Editable
 import android.util.Log
-import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -10,12 +10,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.sbctracker.Event
 import com.example.sbctracker.api.TraceNetwork
 import com.example.sbctracker.db.SbcTrackerDatabase
-import com.example.sbctracker.models.Machine
 import com.example.sbctracker.models.User
-import com.example.sbctracker.repository.MachineRepository
 import com.example.sbctracker.repository.UserRepository
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.squareup.moshi.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.IO
@@ -58,6 +55,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
 
     }
 
+
     fun refreshUser(imei: String) {
         viewModelScope.launch(IO) {
             var security_key =
@@ -83,6 +81,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                     data.phone,
                     data.active
                 )
+                Log.i("User Info", user.toString())
                 insert(user)
 
             } catch (e: HttpException) {
@@ -98,8 +97,8 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 var security_key =
                     "WFv3dqP7oC+Od1GxnQFKwkdyf0i6ipSiTfKtARYSQShO0BwcuvPDLOizPRIiUH"
-                var userObject = hashMapOf<String, String>()
-                userObject["phone"] = phone
+                var userObject = hashMapOf<String, Any>()
+                userObject["phone"] = phone.toInt()
                 userObject["password"] = password
 
                 var gson = Gson()
@@ -111,6 +110,44 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Handle location updates
                 TraceNetwork.api.login(security_key,body).enqueue(object: Callback<String>{
+                    override fun onFailure(call: Call<String>, t: Throwable) {
+                        println("Error while sending request" + t.message)
+
+                    }
+
+                    override fun onResponse(call: Call<String>, response: Response<String>) {
+                        Log.i("User login","""Response: ${response.code()} ${response.body().toString()}""")
+                        if (response.code() == 200) {
+                            requestMessage(true)
+
+                        }
+                        else { requestMessage(false)
+                        }
+
+                    }
+
+                })
+            }
+        }
+    }
+
+    fun logout(phone: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                var security_key =
+                    "WFv3dqP7oC+Od1GxnQFKwkdyf0i6ipSiTfKtARYSQShO0BwcuvPDLOizPRIiUH"
+                var userObject = hashMapOf<String, Any>()
+                userObject["phone"] = phone.toInt()
+
+                var gson = Gson()
+                var userBody = gson.toJson(userObject)
+
+                var body =
+                    userBody.toString()
+                        .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
+
+                // Handle location updates
+                TraceNetwork.api.logout(security_key,body).enqueue(object: Callback<String>{
                     override fun onFailure(call: Call<String>, t: Throwable) {
                         println("Error while sending request" + t.message)
 

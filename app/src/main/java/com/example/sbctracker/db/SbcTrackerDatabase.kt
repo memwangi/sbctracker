@@ -11,7 +11,7 @@ import com.example.sbctracker.models.LastLocation
 import com.example.sbctracker.models.Machine
 import com.example.sbctracker.models.User
 
-@Database(entities = [Machine::class, User::class, LastLocation::class], version = 1, exportSchema = true)
+@Database(entities = [Machine::class, User::class, LastLocation::class], version = 2, exportSchema = true)
 public abstract class SbcTrackerDatabase : RoomDatabase() {
 
     abstract fun machineDao() : MachineDao

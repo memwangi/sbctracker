@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "1cc732a7a7cd933e02a4e7c452726f06",
+    "identityHash": "3a4ab55fb6f86b36eb5d98e11629fd9b",
     "entities": [
       {
-        "tableName": "task_table",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `inserted_at` TEXT NOT NULL, `location` TEXT NOT NULL, `due_date` TEXT NOT NULL, `imei` TEXT NOT NULL, `description` TEXT NOT NULL, `complete` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "tableName": "table_machines",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `locationName` TEXT NOT NULL, `phoneNumber` TEXT NOT NULL, `description` TEXT NOT NULL, `barcode` TEXT NOT NULL, `businessType` TEXT NOT NULL, `longitude` TEXT NOT NULL, `latitude` TEXT NOT NULL, `dateScanned` INTEGER NOT NULL, `path` TEXT NOT NULL, `IMEI` TEXT NOT NULL, `posted` INTEGER NOT NULL, `supervisorID` TEXT NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -15,26 +15,14 @@
             "notNull": true
           },
           {
-            "fieldPath": "inserted_at",
-            "columnName": "inserted_at",
+            "fieldPath": "locationName",
+            "columnName": "locationName",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "location",
-            "columnName": "location",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "due_date",
-            "columnName": "due_date",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "imei",
-            "columnName": "imei",
+            "fieldPath": "phoneNumber",
+            "columnName": "phoneNumber",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -45,9 +33,110 @@
             "notNull": true
           },
           {
-            "fieldPath": "active",
-            "columnName": "complete",
+            "fieldPath": "barcode",
+            "columnName": "barcode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessType",
+            "columnName": "businessType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateScanned",
+            "columnName": "dateScanned",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "IMEI",
+            "columnName": "IMEI",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "posted",
+            "columnName": "posted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supervisorID",
+            "columnName": "supervisorID",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "id"
+          ],
+          "autoGenerate": false
+        },
+        "indices": [
+          {
+            "name": "index_table_machines_barcode",
+            "unique": true,
+            "columnNames": [
+              "barcode"
+            ],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_table_machines_barcode` ON `${TABLE_NAME}` (`barcode`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "table_user",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `supervisor` TEXT NOT NULL, `phone` TEXT NOT NULL, `active` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supervisor",
+            "columnName": "supervisor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "active",
+            "columnName": "active",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -59,12 +148,56 @@
         },
         "indices": [],
         "foreignKeys": []
+      },
+      {
+        "tableName": "location_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `longitude` TEXT NOT NULL, `latitude` TEXT NOT NULL, `imei` TEXT NOT NULL, `name` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imei",
+            "columnName": "imei",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "id"
+          ],
+          "autoGenerate": true
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1cc732a7a7cd933e02a4e7c452726f06')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3a4ab55fb6f86b36eb5d98e11629fd9b')"
     ]
   }
 }

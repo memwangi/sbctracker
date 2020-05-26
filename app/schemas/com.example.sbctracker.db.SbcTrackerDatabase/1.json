@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "1800906127250cce0a77658f73c02cc5",
+    "identityHash": "3a4ab55fb6f86b36eb5d98e11629fd9b",
     "entities": [
       {
         "tableName": "table_machines",
@@ -151,7 +151,7 @@
       },
       {
         "tableName": "location_cache",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `longitude` TEXT NOT NULL, `latitude` TEXT NOT NULL, `imei` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `longitude` TEXT NOT NULL, `latitude` TEXT NOT NULL, `imei` TEXT NOT NULL, `name` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -176,6 +176,12 @@
             "columnName": "imei",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -191,7 +197,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1800906127250cce0a77658f73c02cc5')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3a4ab55fb6f86b36eb5d98e11629fd9b')"
     ]
   }
 }

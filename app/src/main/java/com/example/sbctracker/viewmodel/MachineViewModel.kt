@@ -32,9 +32,9 @@ class MachineViewModel(application: Application) : AndroidViewModel(application)
     private val repository: MachineRepository
     val allMachines: LiveData<List<Machine>>
     val client = OkHttpClient()
-    private val _toastMessage = MutableLiveData<Event<Boolean>>()
+    private val _toastMessage = MutableLiveData<Event<HashMap<Boolean, String>>>()
 
-    val toastMesage: LiveData<Event<Boolean>>
+    val toastMesage: LiveData<Event<HashMap<Boolean, String>>>
         get() = _toastMessage
 
     init {
@@ -97,12 +97,17 @@ class MachineViewModel(application: Application) : AndroidViewModel(application)
             client.newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.i("Response", "Failed Post Request: ${e.message}")
+                    var map = HashMap<Boolean,String>()
+                    map[false] = "Failed to upload data. Please check your network and try again."
+                    requestMessage(map)
                 }
 
                 override fun onResponse(call: Call, response: Response) {
                     if (response.code == 200) {
                         Log.i("Response", "Response is this: ${response}")
-                        requestMessage(true)
+                        var map = HashMap<Boolean,String>()
+                        map[true] = "Upload successful"
+                        requestMessage(map)
 
                         // I found this method necessary because there was no way to know whether
                         // an item has been posted from my end without having to make an expensive call.
@@ -110,34 +115,29 @@ class MachineViewModel(application: Application) : AndroidViewModel(application)
                         setPosted(machine)
 
 
-                    } else if (response.code == 400) {
+                    } else if (response.code == 400 || response.code == 401) {
                         Log.i("Response Failed", response.message)
-                        requestMessage(false)
+                        var map = HashMap<Boolean,String>()
+                        map[true] = "Failed.Item already exists"
+                        requestMessage(map)
                     }
                 }
             })
         }
     }
 
-    fun updateStockImage(filepath: String, barcode: String, IMEI: String) {
+    fun updateStockImage(filepath: String, barcode: String, data: String) {
 
-        var gson = Gson()
         var image = convertFilePathToByteArray(filepath)
-        var currentTime = DateTime.now()
-        var itemObject = hashMapOf<String, String>()
-        itemObject["time"] = currentTime.toString()
-        itemObject["barcode"] = barcode
-        itemObject["IMEI"] = IMEI
+        Log.i("Response", "Doctary: ${data}")
 
-
-        var itemBody = gson.toJson(itemObject)
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
 
                 val requestBody = MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
-                    .addFormDataPart("data", itemBody)
+                    .addFormDataPart("data", data)
                     .addFormDataPart(
                         "image", "${barcode}.jpg",
                         image.toRequestBody("image/*jpg".toMediaTypeOrNull())
@@ -152,17 +152,24 @@ class MachineViewModel(application: Application) : AndroidViewModel(application)
                 client.newCall(request).enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
                         Log.i("Response", "Failed Post Request: ${e.message}")
-                        requestMessage(false)
+                        var map = HashMap<Boolean,String>()
+                        map[true] = "Failed to upload data. Please check your network and try again."
+                        requestMessage(map)
                     }
 
                     override fun onResponse(call: Call, response: Response) {
+
                         if (response.code == 200) {
                             Log.i("Response", "Response is this: ${response}")
-                            requestMessage(true)
+                            var map = HashMap<Boolean,String>()
+                            map[true] = "Upload successful"
+                            requestMessage(map)
 
-                        } else if (response.code == 400) {
-                            Log.i("Item Already Exists", response.message)
-                            requestMessage(false)
+                        } else {
+                            Log.i("Response", "Response is this: ${response}")
+                            var map = HashMap<Boolean,String>()
+                            map[true] = "Req"
+                            requestMessage(map)
                         }
                     }
                 })
@@ -196,13 +203,13 @@ class MachineViewModel(application: Application) : AndroidViewModel(application)
         options.inPreferredConfig = Bitmap.Config.RGB_565;
         // Read bitmap by filepath
         var bitmap = BitmapFactory.decodeFile(filepath, options)
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, stream);
         var bytes: ByteArray = stream.toByteArray()
 
         return bytes
     }
 
-    fun requestMessage(message: Boolean) {
+    fun requestMessage(message: HashMap<Boolean,String>) {
         viewModelScope.launch {
             withContext(Dispatchers.Main) {
                 _toastMessage.setValue(Event(message))   // Trigger the event by setting a new Event as a new value

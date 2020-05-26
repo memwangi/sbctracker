@@ -11,6 +11,7 @@ import com.example.sbctracker.db.SbcTrackerDatabase
 import com.example.sbctracker.models.LastLocation
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType
@@ -24,7 +25,7 @@ import retrofit2.Response
 
 class LastLocationRepository(private val locationDao: LastLocationDao) {
 
-    var lastLocation = locationDao.getRecentLocation()
+    var _lastLocation = locationDao.getRecentLocation()
     /**
      * Store the recent location updates.
      * */
@@ -38,40 +39,31 @@ class LastLocationRepository(private val locationDao: LastLocationDao) {
         }
     }
 
-//    suspend fun automateLocationUpdates() {
-//        withContext(Dispatchers.IO) {
-//            lastLocation.observe(Lifecycle, Observer {
-//
-//            })
-//        }
-//    }
 
-    suspend fun sendLocationUpdate(lastLocation: LastLocation){
+    suspend fun sendLocationUpdate(location: LastLocation){
         withContext(Dispatchers.IO) {
             launch {
                 var security_key =
                     "WFv3dqP7oC+Od1GxnQFKwkdyf0i6ipSiTfKtARYSQShO0BwcuvPDLOizPRIiUH"
 
                 var gson = Gson()
-                var locationBody = gson.toJson(lastLocation)
+                var locationBody = gson.toJson(location)
 
-                if (locationBody.toString() != null) {
-                    var body =
-                        locationBody.toString()
-                            .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
+                var body =
+                    locationBody.toString()
+                        .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
 
-                    Log.i("Uploading Location","Location object:, ${locationBody.toString()}")
-                    // Handle location updates
-                    TraceNetwork.api.postLocationUpdates(security_key,body).enqueue(object: Callback<String> {
-                        override fun onFailure(call: Call<String>, t: Throwable) {
-                            println("Error while sending request" + t.message)
-                        }
+                Log.i("Uploading Location","Location object:, ${locationBody.toString()}")
+                // Handle location updates
+                TraceNetwork.api.postLocationUpdates(security_key,body).enqueue(object: Callback<String> {
+                    override fun onFailure(call: Call<String>, t: Throwable) {
+                        println("Error while sending request" + t.message)
+                    }
 
-                        override fun onResponse(call: Call<String>, response: Response<String>) {
-                            Log.i("Location Updates","""Response: ${response.code()} ${response.body().toString()}""")
-                        }
-                    })
-                }
+                    override fun onResponse(call: Call<String>, response: Response<String>) {
+                        Log.i("Location Updates","""Response: ${response.code()} ${response.body().toString()}""")
+                    }
+                })
             }
         }
     }

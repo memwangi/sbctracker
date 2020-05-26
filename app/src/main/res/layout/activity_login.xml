@@ -38,10 +38,9 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="16dp"
-            android:textSize="24sp"
-            android:textColor="@color/colorPrimaryDark"
             android:text="Sign In"
-            />
+            android:textColor="@color/colorPrimaryDark"
+            android:textSize="18sp" />
 
         <ProgressBar
             android:id="@+id/loading"
@@ -95,25 +94,13 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/login"
                 style="@style/Widget.MaterialComponents.Button"
-                android:layout_width="wrap_content"
+                android:layout_margin="4dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentRight="true"
                 android:text="Login"
                 />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/cancel_action"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="@style/Widget.MaterialComponents.Button"
-                android:layout_marginEnd="12dp"
-                android:layout_marginRight="12dp"
-                android:layout_toStartOf="@+id/login"
-                android:layout_toLeftOf="@+id/login"
-                android:text="Cancel"
-                />
-
 
         </RelativeLayout>
 

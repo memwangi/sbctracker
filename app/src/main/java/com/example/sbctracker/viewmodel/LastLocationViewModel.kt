@@ -4,10 +4,12 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.sbctracker.db.SbcTrackerDatabase
 import com.example.sbctracker.models.LastLocation
 import com.example.sbctracker.repository.LastLocationRepository
+import com.google.android.gms.common.api.Response
 import kotlinx.coroutines.*
 import retrofit2.HttpException
 import java.io.IOException
@@ -16,39 +18,16 @@ class LastLocationViewModel(application: Application) : AndroidViewModel(applica
 
     private val repository: LastLocationRepository
 
+    // To get the saved location from Room database
+    val location: MutableLiveData<LastLocation> = MutableLiveData()
+
     var lastLocation: LiveData<LastLocation>
+
 
     init {
         val locationDao = SbcTrackerDatabase.getDatabase(application).lastLocationDao()
         repository = LastLocationRepository(locationDao)
-        lastLocation = repository.lastLocation
+        lastLocation = repository._lastLocation
     }
-
-
-    fun insertLastLocation(lastLocation: LastLocation) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                // Insert new location
-                repository.addLocation(lastLocation)
-                Log.i("Insert Location","Location stored successfully")
-
-            } catch (e: IOException) {
-                Log.i("Insert Location",e.toString())
-            }
-        }
-    }
-
-    fun sendUpdates(location: LastLocation) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.sendLocationUpdate(location)
-                Log.i("Sending Cached Data", "Sent")
-            } catch (e: HttpException) {
-                Log.i("Sending Cached Data", "Error")
-            }
-
-        }
-    }
-
 
 }

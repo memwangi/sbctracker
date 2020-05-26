@@ -6,52 +6,52 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.location.Location
-import android.net.ConnectivityManager
-import android.net.NetworkInfo
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
-import android.view.View
-import android.widget.Toast
+import android.widget.Toolbar
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.work.*
 import com.example.sbctracker.R
-import com.example.sbctracker.models.LastLocation
 import com.example.sbctracker.utils.SaveSharedPreference
+import com.example.sbctracker.utils.UniqueDeviceID
 import com.example.sbctracker.viewmodel.LastLocationViewModel
 import com.example.sbctracker.viewmodel.MachineViewModel
 import com.example.sbctracker.viewmodel.UserViewModel
+import com.example.sbctracker.work.LocationTrackingWorker
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.zxing.client.android.Intents
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.android.synthetic.main.activity_home.*
-import org.joda.time.DateTime
+import java.util.concurrent.TimeUnit
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var userViewModel: UserViewModel
     private lateinit var machineViewModel: MachineViewModel
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
     private lateinit var locationRequest: LocationRequest
-    private lateinit var latitude: String
-    private lateinit var longitude: String
+    private lateinit var supervisorID: String
+    private lateinit var toolbar: Toolbar
     private var TAG = "HomeActivity"
+    private var WORKER_TAG = "Location Worker"
     private var locationUpdateState = false
     private lateinit var lastLocationViewModel: LastLocationViewModel
-    private lateinit var mLastLocation: Location
+    private lateinit var identifier: String
+
 
     companion object {
         private const val REQUEST_LOCATION_PERMISSION = 1
-        private const val REQUEST_CHECK_SETTINGS = 2
+        const val REQUEST_CHECK_SETTINGS = 2
         private const val REQUEST_PHONE_STATE = 101
         private const val REQUEST_SCAN_CONFIRM = 7
         private const val REQUEST_SCAN_NEW = 5
@@ -60,76 +60,41 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_home)
-        setSupportActionBar(app_bar)
+        supportActionBar?.setDisplayShowHomeEnabled(true);
+        supportActionBar?.setLogo(R.mipmap.gnl)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
         // Initialize view model
         machineViewModel = ViewModelProvider(this).get(MachineViewModel::class.java)
         lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
-        val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        imeiTextView.text = tel.imei
 
+        // Get ID from shared preferences
+        var id = UniqueDeviceID.getID(this)
+        id?.let {
+            identifier = it
+        }
         userViewModel.user.observe(this@HomeActivity, Observer {
             it?.let {
+                // Identifier is the phone number. Used to identify the user/device when the imei is not available.
                 this@HomeActivity.runOnUiThread {
                     supervisorText.text = it.supervisor
                     username.text = it.name
+                    supervisorID = it.id.toString()
+                    imeiTextView.text = identifier
                 }
+
             }
         })
 
-
-
-        // Upload any cached data
-        uploadCachedData()
-
+        // Once user details are available, then start transmitting data
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        setupLocationClient()
 
-
-        // Location request
-        createLocationRequest()
-
-
-        //Location call back
-        locationCallback = object : LocationCallback() {
-            @RequiresApi(Build.VERSION_CODES.O)
-            override fun onLocationResult(p0: LocationResult?) {
-                super.onLocationResult(p0)
-                // Update location
-                mLastLocation = p0?.lastLocation!!
-
-                longitude = mLastLocation.longitude.toString()
-                latitude = mLastLocation.latitude.toString()
-
-                // Check whether IMEI is enabled
-                if (ActivityCompat.checkSelfPermission(
-                        this@HomeActivity,
-                        Manifest.permission.READ_PHONE_STATE
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    try {
-
-                        var tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                        var IMEI = tel.imei
-                        sendLocationUpdates(mLastLocation, IMEI)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                } else {
-                    ActivityCompat.requestPermissions(
-                        this@HomeActivity,
-                        arrayOf(Manifest.permission.READ_PHONE_STATE),
-                        HomeActivity.REQUEST_PHONE_STATE
-                    )
-                }
-            }
-        }
+        //Request location permission and start worker
+        requestLocationPermission(identifier)
 
         // Floating action button
         btnScan.setOnClickListener {
-
             run {
                 IntentIntegrator(this@HomeActivity)
                     .setOrientationLocked(false)
@@ -148,9 +113,7 @@ class HomeActivity : AppCompatActivity() {
                     .initiateScan()
             }
         }
-
     }
-
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         val inflater: MenuInflater = menuInflater
@@ -171,10 +134,57 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun startWorker(imei: String) {
+        //Start tracking location updates
+        if (SaveSharedPreference.getLoggedStatus(applicationContext)) {
+            if (!isWorkScheduled(WorkManager.getInstance().getWorkInfosByTag(WORKER_TAG).get())) {
+                //If there is now work scheduled then do
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+
+                val data = Data.Builder()
+                data.putString("identifier", imei)
+
+                val repeatingRequest =
+                    PeriodicWorkRequestBuilder<LocationTrackingWorker>(10, TimeUnit.MINUTES)
+                        .setConstraints(constraints)
+                        .setInputData(data.build())
+                        .build()
+
+                WorkManager.getInstance().enqueueUniquePeriodicWork(
+                    WORKER_TAG,
+                    ExistingPeriodicWorkPolicy.REPLACE,
+                    repeatingRequest
+                )
+            }
+        }
+    }
+
+    private fun stopWorker() {
+        WorkManager.getInstance().cancelAllWorkByTag(WORKER_TAG)
+    }
+
+    private fun isWorkScheduled(workInfos: List<WorkInfo>?): Boolean {
+        var running = false
+        if (workInfos == null || workInfos.isEmpty()) return false
+        for (workStatus in workInfos) {
+            running =
+                workStatus.state == WorkInfo.State.RUNNING || workStatus.state == WorkInfo.State.ENQUEUED
+        }
+        return running
+    }
+
+
     private fun logout() {
+        stopWorker()
         val intent = Intent(applicationContext, LoginActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
+    }
+
+    override fun onBackPressed() {
+        moveTaskToBack(true)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -182,7 +192,6 @@ class HomeActivity : AppCompatActivity() {
         when (requestCode) {
             REQUEST_CHECK_SETTINGS -> if (resultCode == Activity.RESULT_OK) {
                 locationUpdateState = true
-                startLocationUpdates()
             }
 
             REQUEST_SCAN_CONFIRM -> {
@@ -192,21 +201,19 @@ class HomeActivity : AppCompatActivity() {
                 if (content != null) {
                     if (ActivityCompat.checkSelfPermission(
                             this,
-                            android.Manifest.permission.ACCESS_FINE_LOCATION
+                            android.Manifest.permission.READ_PHONE_STATE
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         ActivityCompat.requestPermissions(
                             this,
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                            HomeActivity.REQUEST_LOCATION_PERMISSION
+                            arrayOf(Manifest.permission.READ_PHONE_STATE),
+                            HomeActivity.REQUEST_PHONE_STATE
                         )
                     }
-                    val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                    val IMEI = tel.imei
-
                     // Then use the longitude and latitude value for the next activity
                     scanIntent.putExtra("Result", content)
-                    scanIntent.putExtra("imei", IMEI)
+                    scanIntent.putExtra("identifier", identifier)
+                    scanIntent.putExtra("superID", supervisorID)
                     startActivity(scanIntent)
 
 
@@ -223,138 +230,48 @@ class HomeActivity : AppCompatActivity() {
                 if (content != null) {
                     if (ActivityCompat.checkSelfPermission(
                             this,
-                            android.Manifest.permission.ACCESS_FINE_LOCATION
+                            android.Manifest.permission.READ_PHONE_STATE
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         ActivityCompat.requestPermissions(
                             this,
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                            HomeActivity.REQUEST_LOCATION_PERMISSION
+                            arrayOf(Manifest.permission.READ_PHONE_STATE),
+                            HomeActivity.REQUEST_PHONE_STATE
                         )
                     }
-                    val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                    var IMEI = tel.imei
                     scanIntent.putExtra("Result", content)
-                    scanIntent.putExtra("imei", IMEI)
+                    scanIntent.putExtra("identifier", identifier)
                     startActivity(scanIntent)
                 } else {
                     Log.i("HOME", "Failed")
                 }
             }
-
         }
     }
 
-
-    public override fun onResume() {
-        super.onResume()
-        if (!locationUpdateState) {
-            startLocationUpdates()
-        }
-    }
-
-    /**
-     * Send location updates
-     * */
-    private fun sendLocationUpdates(lastLocation: Location, imei: String) {
-        // Send updates
-        latitude = lastLocation.latitude.toString()
-        longitude = lastLocation.longitude.toString()
-
-
-        val tracedLocation = LastLocation(
-            0,
-            lastLocation.longitude.toString(),
-            lastLocation.latitude.toString(),
-            imei
-        )
-        Log.i(TAG, tracedLocation.toString())
-        // Store location
-        lastLocationViewModel.insertLastLocation(tracedLocation)
-        // Observe changes and send cached data
-        lastLocationViewModel.lastLocation.observe(this, Observer {
-            it?.let {
-                lastLocationViewModel.sendUpdates(it)
-            }
-        })
-    }
 
     /**
      * Set up fused location provider
      * */
-    private fun setupLocationClient() {
+    private fun requestLocationPermission(identifier: String) {
         if (ActivityCompat.checkSelfPermission(
                 this,
                 android.Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            startWorker(identifier)
 
         } else {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
                 REQUEST_LOCATION_PERMISSION
             )
-
         }
 
-    }
-
-    private fun createLocationRequest() {
-        locationRequest = LocationRequest()
-        locationRequest.interval = 1000 * 50
-        locationRequest.fastestInterval = 10000
-        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-
-        val builder = LocationSettingsRequest.Builder()
-            .addLocationRequest(locationRequest)
-
-        val client = LocationServices.getSettingsClient(this)
-        val task = client.checkLocationSettings(builder.build())
-
-        task.addOnSuccessListener {
-            locationUpdateState = true
-            startLocationUpdates()
-        }
-        task.addOnFailureListener { e ->
-            // 6
-            if (e is ResolvableApiException) {
-                // Location settings are not satisfied, but this can be fixed
-                // by showing the user a dialog.
-                try {
-                    // Show the dialog by calling startResolutionForResult(),
-                    // and check the result in onActivityResult().
-                    e.startResolutionForResult(
-                        this@HomeActivity,
-                        HomeActivity.REQUEST_CHECK_SETTINGS
-                    )
-                } catch (sendEx: IntentSender.SendIntentException) {
-                    // Ignore the error.
-                }
-            }
-        }
-    }
-
-    /**
-     * Upload cached data once there's an internet connection
-     * */
-    private fun uploadCachedData() {
-        // Observer data that hasn't been posted
-        machineViewModel.allMachines.observe(this, Observer {
-            //Toast.makeText(this, "Uploading cached data", Toast.LENGTH_LONG).show()
-            it?.let {
-                for (machine in it) {
-                    machineViewModel.postNewItem(machine)
-                }
-            }
-        })
-
-    }
-
-
-    private fun startLocationUpdates() {
-        // Check whether access location permission is granted
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
     }
 
     override fun onRequestPermissionsResult(
@@ -366,20 +283,15 @@ class HomeActivity : AppCompatActivity() {
         if (requestCode == REQUEST_PHONE_STATE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Once user grants permission to access the location, get the current location
-                val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                var IMEI = tel.imei
 
-                if (IMEI != null) {
-                    imeiTextView.text = IMEI
-                    userViewModel.refreshUser(IMEI)
-                }
+                imeiTextView.text = identifier
+                userViewModel.refreshUser(identifier)
             }
         }
 
         if (requestCode == REQUEST_LOCATION_PERMISSION) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Once user grants permission to access the location, initiate fused location client
-
+                startWorker(identifier)
             }
         }
     }

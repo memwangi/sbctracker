@@ -1,20 +1,13 @@
 package com.example.sbctracker.activities
 
 import android.app.Activity
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.Cursor
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.text.Editable
 import android.view.View
@@ -30,32 +23,32 @@ import com.example.sbctracker.models.Machine
 import com.example.sbctracker.viewmodel.LastLocationViewModel
 import com.example.sbctracker.viewmodel.MachineViewModel
 import com.example.sbctracker.viewmodel.UserViewModel
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import kotlinx.android.synthetic.main.activity_home.*
 import kotlinx.android.synthetic.main.activity_scan.*
-import okhttp3.*
 import org.joda.time.DateTime
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.collections.ArrayList
 
 
 class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     private lateinit var barcode: String
     var REQUEST_TAKE_PHOTO = 2
     private var filePath: String? = null
-    private lateinit var IMEI: String
+    private var categoryList: MutableList<String>? = null
+    private var channelList: MutableList<String>? = null
+
+    private lateinit var identifier: String
     private lateinit var machineViewModel: MachineViewModel
     private lateinit var userViewModel: UserViewModel
     private lateinit var lastLocationViewModel: LastLocationViewModel
     private lateinit var latitude: String
     private lateinit var longitude: String
     private lateinit var mProgressBar: ProgressBar
-    private lateinit var mSpinner: Spinner
-    private lateinit var customerType: String
-    private lateinit var spinnerAdapter: SpinnerAdapter
+    private var customerType: String? = null
+    private var channelType: String? = null
     private lateinit var supervisorID: String
 
 
@@ -81,39 +74,27 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         })
         mProgressBar = progressBar
         // Get information task details from intent
-        IMEI = intent.getStringExtra("imei")
+        identifier = intent.getStringExtra("identifier")
         barcode = intent.getStringExtra("Result")
-
         itemIdentifier.text = barcode
 
-
-        // Spinner
-        mSpinner = typeSpinner
-        spinnerAdapter = setUpSpinnerAdapter()
-        mSpinner.adapter = spinnerAdapter
-        mSpinner.onItemSelectedListener = this
-
-
+        initTypeSpinner()
+        initChannelSpinner()
 
         btnCancel.setOnClickListener {
             onBackPressed()
         }
 
-
         btnSubmit.setOnClickListener {
-
             // Post the item details as a new item
-            if (!locationPhone.text.isNullOrEmpty() or locationName.text.isNullOrEmpty() && !description.text.isNullOrEmpty()) {
+            if (!locationPhone.text.isNullOrEmpty() && !locationName.text.isNullOrEmpty() && channelType != null && customerType != null) {
                 if (isPhoneValid(locationPhone.text)) {
                     // Clear the error
                     locationPhone.error = null
                     addMachine(latitude, longitude, supervisorID)
-
-
                 } else {
                     locationPhone.error = "Please enter a correct phone number e.g 0712300000"
                 }
-
             } else {
                 Toast.makeText(
                     this,
@@ -130,6 +111,62 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
     }
 
+    private fun initTypeSpinner() {
+        categoryList = ArrayList()
+        categoryList!!.add("Distributor")
+        categoryList!!.add("Stockist")
+        categoryList!!.add("Retailer")
+        typeSpinner.item = categoryList
+
+        typeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                adapterView: AdapterView<*>,
+                view: View,
+                position: Int,
+                id: Long
+            ) {
+                customerType = categoryList!![position]
+            }
+
+            override fun onNothingSelected(adapterView: AdapterView<*>) {
+                Toast.makeText(
+                    this@ScanActivity,
+                    "Please select a category to continue",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun initChannelSpinner() {
+        channelList = ArrayList()
+        channelList!!.add("Grocery/Kiosk")
+        channelList!!.add("Bar/Restaurant")
+        channelList!!.add("School")
+        channelList!!.add("Supermarket")
+        channelList!!.add("Other")
+
+        channelSpinner.item = channelList
+        channelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                adapterView: AdapterView<*>,
+                view: View,
+                position: Int,
+                id: Long
+            ) {
+                channelType = channelList!![position]
+            }
+
+            override fun onNothingSelected(adapterView: AdapterView<*>) {
+                Toast.makeText(
+                    this@ScanActivity,
+                    "Please select a channel to continue",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
     private fun isPhoneValid(text: Editable?): Boolean {
         var pattern =
             Pattern.compile("^(?:254|\\+254|0)?(7(?:(?:[0-9][0-9])|(?:0[0-8])|(?:9[0-2]))[0-9]{6})$")
@@ -142,32 +179,8 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     }
 
 
-    private fun setUpSpinnerAdapter(): SpinnerAdapter {
-        //Array adapter
-        var adapter = ArrayAdapter.createFromResource(
-            this,
-            R.array.userType,
-            android.R.layout.simple_spinner_item
-        )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-
-        return adapter
-
-    }
-
-    override fun onNothingSelected(p0: AdapterView<*>?) {
-        Toast.makeText(this, "Select customer type", Toast.LENGTH_LONG).show()
-
-    }
-
-    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-        customerType = mSpinner.selectedItem as String
-    }
-
-
     override fun onBackPressed() {
-        var intent = Intent(this, HomeActivity::class.java)
-        startActivity(intent)
+        finish()
         super.onBackPressed()
 
     }
@@ -188,83 +201,82 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         var dateTimeNow = DateTime.now()
 
         // Stores time in milliseconds since epoch for accuracy
-        if (!filePath.isNullOrBlank()) {
-            var machine = filePath?.let {
-                Machine(
-                    0,
-                    locationName.editableText.toString(),
-                    locationPhone.editableText.toString(),
-                    description.editableText.toString(),
-                    barcode,
-                    customerType,
-                    longitude,
-                    latitude,
-                    dateTimeNow.millis,
-                    it,
-                    IMEI,
-                    false,
-                    supervisorID
-                )
-
-            }
-
-            // Create new machine
-            if (machine != null) {
-
-                var connectivityManager =
-                    getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
-
-                if (activeNetwork?.isConnected != null) {
-                    progressBar.visibility = View.VISIBLE
-                    machineViewModel.insert(machine)
-                    machineViewModel.postNewItem(machine)
-                    machineViewModel.toastMesage.observe(this, Observer { it ->
-                        it.getContentIfNotHandled()?.let {
-                            if (it) {
-                                Toast.makeText(this, "Uploaded successfully.", Toast.LENGTH_LONG)
-                                    .show()
-                                uploadImage.setImageResource(R.drawable.ic_camera)
-                                locationName.text = null
-                                locationPhone.text = null
-                                description.text = null
-                                progressBar.visibility = View.GONE
-                                onNavigateUp()
-                            } else {
-                                uploadImage.setImageResource(R.drawable.ic_camera)
-                                locationName.text = null
-                                locationPhone.text = null
-                                description.text = null
-                                Toast.makeText(
-                                    this,
-                                    "Failed. This barcode already exists.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                onNavigateUp()
-                            }
-
+            if (!filePath.isNullOrBlank()) {
+                var machine = filePath?.let {
+                    channelType?.let { it1 ->
+                        customerType?.let { it2 ->
+                            Machine(
+                                0,
+                                locationName.editableText.toString(),
+                                locationPhone.editableText.toString(),
+                                it1,
+                                barcode,
+                                it2,
+                                longitude,
+                                latitude,
+                                dateTimeNow.millis,
+                                it,
+                                identifier,
+                                false,
+                                supervisorID
+                            )
                         }
-                    })
-                } else {
-                    progressBar.visibility = View.VISIBLE
-                    machineViewModel.insert(machine)
-                    progressBar.visibility = View.GONE
-                    Toast.makeText(
-                        this,
-                        "Saved successfully. Will upload once there's an internet connection.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    }
+
                 }
 
+                // Create new machine
+                if (machine != null) {
 
-            }
+                    var connectivityManager =
+                        getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                    val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
 
-        } else {
-            Toast.makeText(
-                this@ScanActivity,
-                "Please select or add a photo",
-                Toast.LENGTH_LONG
-            ).show()
+                    if (activeNetwork?.isConnected != null) {
+                        progressBar.visibility = View.VISIBLE
+                        machineViewModel.insert(machine)
+                        machineViewModel.postNewItem(machine)
+                        machineViewModel.toastMesage.observe(this, Observer { it ->
+                            it.getContentIfNotHandled()?.let {
+                                if (it.containsKey(true)) {
+                                    Toast.makeText(this, it[true], Toast.LENGTH_LONG)
+                                        .show()
+                                    uploadImage.setImageResource(R.drawable.ic_camera)
+                                    locationName.text = null
+                                    locationPhone.text = null
+                                    progressBar.visibility = View.GONE
+                                    onBackPressed()
+                                } else {
+                                    uploadImage.setImageResource(R.drawable.ic_camera)
+                                    locationName.text = null
+                                    locationPhone.text = null
+                                    Toast.makeText(
+                                        this,
+                                        it[false],
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    onBackPressed()
+                                }
+
+                            }
+                        })
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Please check your connection and try again.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
+
+                }
+
+            } else {
+                Toast.makeText(
+                    this@ScanActivity,
+                    "Please select or add a photo",
+                    Toast.LENGTH_LONG
+                ).show()
         }
     }
 
@@ -318,6 +330,14 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         } else {
             return false
         }
+    }
+
+    override fun onNothingSelected(p0: AdapterView<*>?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
+        TODO("Not yet implemented")
     }
 
 }
