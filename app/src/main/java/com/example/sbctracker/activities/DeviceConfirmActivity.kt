@@ -76,18 +76,24 @@ class DeviceConfirmActivity : AppCompatActivity() {
 
 
         lastLocationViewModel.lastLocation.observe(this, Observer {
-            if(it != null) {
+            if (it != null) {
                 longitude = it.longitude
                 latitude = it.latitude
-                var data = serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
+                var data =
+                    serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
                 if (checkNetworkConnectivity()) {
                     getItemDetails(barcode, data)
                 } else {
-                    notFoundTextView.setText("Failed to connect. Please check your internet and try again.")
+                    notFoundTextView.text =
+                        "Failed to connect. Please check your internet and try again."
                     notFoundTextView.visibility = View.VISIBLE
                 }
             } else {
-                Toast.makeText(this, "Please wait as we fetch your current location", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this,
+                    "Please wait as we fetch your current location",
+                    Toast.LENGTH_LONG
+                ).show()
             }
 
         })
@@ -103,7 +109,8 @@ class DeviceConfirmActivity : AppCompatActivity() {
             if (filePath != null) {
 
                 mProgressBar.visibility = View.VISIBLE
-                var data = serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
+                var data =
+                    serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
                 machineViewModel.updateStockImage(filePath!!, barcode, data)
 
                 machineViewModel.toastMesage.observe(this, Observer { it ->
@@ -207,26 +214,41 @@ class DeviceConfirmActivity : AppCompatActivity() {
 
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                 var result = response.body!!.string()
-                Log.i("Device Confirm", result)
+                Log.i("Device Confirm: ${response.code}", result)
                 var jsonObject = JSONObject(result)
                 var _response = jsonObject.getBoolean("response")
 
-                if(_response && response.code == 200) {
-                    this@DeviceConfirmActivity.runOnUiThread {
-                        // If there is a response, update the UI with details of the scanned item
-                        var resultData = jsonObject.getJSONObject("data")
-                        Log.i("Device Confirm", "${resultData}")
-                        confirmDescription.setText(resultData.getString("description"))
-                        barcodeConfirm.text = barcode
-                        customerType.text = resultData.getString("type")
-                        confirmPhone.text = resultData.getString("phone")
-                        confirmName.text = resultData.getString("name")
+
+                when (response.code) {
+                    200 -> {
+                        if (_response) {
+                            this@DeviceConfirmActivity.runOnUiThread {
+                                var resultData = jsonObject.getJSONObject("data")
+                                // If there is a response, update the UI with details of the scanned item
+                                Log.i("Device Confirm", "$resultData")
+                                confirmDescription.text = resultData.getString("description")
+                                barcodeConfirm.text = barcode
+                                customerType.text = resultData.getString("type")
+                                confirmPhone.text = resultData.getString("phone")
+                                confirmName.text = resultData.getString("name")
+                            }
+                        }
                     }
-                } else {
-                    this@DeviceConfirmActivity.runOnUiThread {
-                        allDetails.visibility = View.GONE
-                        notFoundTextView.visibility = View.VISIBLE
-                        notFoundTextView.setText(R.string.ItemDoesNotExist)
+                    403 -> {
+                        // Item already been scanned within the last 24 hours.
+                        this@DeviceConfirmActivity.runOnUiThread {
+                            allDetails.visibility = View.GONE
+                            notFoundTextView.visibility = View.VISIBLE
+                            notFoundTextView.setText(R.string.alreadyScanned)
+                        }
+
+                    }
+                    else -> {
+                        this@DeviceConfirmActivity.runOnUiThread {
+                            allDetails.visibility = View.GONE
+                            notFoundTextView.visibility = View.VISIBLE
+                            notFoundTextView.setText(R.string.ItemDoesNotExist)
+                        }
                     }
                 }
             }

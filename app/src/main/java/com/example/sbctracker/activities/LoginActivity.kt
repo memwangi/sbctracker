@@ -62,9 +62,9 @@ class LoginActivity : AppCompatActivity() {
                             userphone.text.toString(),
                             password_edit_text.text.toString()
                         )
-                        userViewModel.toastMesage.observe(this, Observer { it ->
+                        userViewModel.toastMessage.observe(this, Observer { it ->
                             it.getContentIfNotHandled()?.let {
-                                if (it) {
+                                if (it.first) {
                                     // Set Logged In statue to 'true'
                                     SaveSharedPreference.setLoggedIn(applicationContext, true)
 
@@ -72,7 +72,7 @@ class LoginActivity : AppCompatActivity() {
                                     getUserDetails(phone)
                                 } else {
                                     Toast.makeText(
-                                        applicationContext, "Failed. Please enter the correct phone number and password.",
+                                        applicationContext, it.second,
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }

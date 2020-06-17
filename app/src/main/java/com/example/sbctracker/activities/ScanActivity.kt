@@ -19,7 +19,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.example.sbctracker.R
-import com.example.sbctracker.models.Machine
+import com.example.sbctracker.models.Outlet
 import com.example.sbctracker.viewmodel.LastLocationViewModel
 import com.example.sbctracker.viewmodel.MachineViewModel
 import com.example.sbctracker.viewmodel.UserViewModel
@@ -60,11 +60,6 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
 
         machineViewModel = ViewModelProvider(this).get(MachineViewModel::class.java)
-        userViewModel.user.observe(this@ScanActivity, Observer {
-            it?.let {
-                supervisorID = it.id.toString()
-            }
-        })
 
         lastLocationViewModel.lastLocation.observe(this, Observer {
             it?.let {
@@ -74,6 +69,7 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         })
         mProgressBar = progressBar
         // Get information task details from intent
+        supervisorID = intent.getStringExtra("superID")
         identifier = intent.getStringExtra("identifier")
         barcode = intent.getStringExtra("Result")
         itemIdentifier.text = barcode
@@ -87,7 +83,8 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
         btnSubmit.setOnClickListener {
             // Post the item details as a new item
-            if (!locationPhone.text.isNullOrEmpty() && !locationName.text.isNullOrEmpty() && channelType != null && customerType != null) {
+            if (!locationPhone.text.isNullOrEmpty() && !locationName.text.isNullOrEmpty()
+                && channelType != null && customerType != null && !outletLocation.text.isNullOrEmpty()) {
                 if (isPhoneValid(locationPhone.text)) {
                     // Clear the error
                     locationPhone.error = null
@@ -201,82 +198,83 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         var dateTimeNow = DateTime.now()
 
         // Stores time in milliseconds since epoch for accuracy
-            if (!filePath.isNullOrBlank()) {
-                var machine = filePath?.let {
-                    channelType?.let { it1 ->
-                        customerType?.let { it2 ->
-                            Machine(
-                                0,
-                                locationName.editableText.toString(),
-                                locationPhone.editableText.toString(),
-                                it1,
-                                barcode,
-                                it2,
-                                longitude,
-                                latitude,
-                                dateTimeNow.millis,
-                                it,
-                                identifier,
-                                false,
-                                supervisorID
-                            )
-                        }
+        if (!filePath.isNullOrBlank()) {
+            var machine = filePath?.let {
+                channelType?.let { channelType ->
+                    customerType?.let { customerType ->
+                        Outlet(
+                            0,
+                            locationName.editableText.toString(),
+                            locationPhone.editableText.toString(),
+                            channelType,
+                            barcode,
+                            outletLocation.editableText.toString(),
+                            customerType,
+                            longitude,
+                            latitude,
+                            dateTimeNow.millis,
+                            it,
+                            identifier,
+                            false,
+                            supervisorID
+                        )
                     }
-
                 }
 
-                // Create new machine
-                if (machine != null) {
+            }
 
-                    var connectivityManager =
-                        getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                    val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
+            // Create new machine
+            if (machine != null) {
 
-                    if (activeNetwork?.isConnected != null) {
-                        progressBar.visibility = View.VISIBLE
-                        machineViewModel.insert(machine)
-                        machineViewModel.postNewItem(machine)
-                        machineViewModel.toastMesage.observe(this, Observer { it ->
-                            it.getContentIfNotHandled()?.let {
-                                if (it.containsKey(true)) {
-                                    Toast.makeText(this, it[true], Toast.LENGTH_LONG)
-                                        .show()
-                                    uploadImage.setImageResource(R.drawable.ic_camera)
-                                    locationName.text = null
-                                    locationPhone.text = null
-                                    progressBar.visibility = View.GONE
-                                    onBackPressed()
-                                } else {
-                                    uploadImage.setImageResource(R.drawable.ic_camera)
-                                    locationName.text = null
-                                    locationPhone.text = null
-                                    Toast.makeText(
-                                        this,
-                                        it[false],
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    onBackPressed()
-                                }
+                var connectivityManager =
+                    getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
 
+                if (activeNetwork?.isConnected != null) {
+                    progressBar.visibility = View.VISIBLE
+                    machineViewModel.insert(machine)
+                    machineViewModel.postNewItem(machine)
+                    machineViewModel.toastMesage.observe(this, Observer { it ->
+                        it.getContentIfNotHandled()?.let {
+                            if (it.containsKey(true)) {
+                                Toast.makeText(this, it[true], Toast.LENGTH_LONG)
+                                    .show()
+                                uploadImage.setImageResource(R.drawable.ic_camera)
+                                locationName.text = null
+                                locationPhone.text = null
+                                progressBar.visibility = View.GONE
+                                onBackPressed()
+                            } else {
+                                uploadImage.setImageResource(R.drawable.ic_camera)
+                                locationName.text = null
+                                locationPhone.text = null
+                                Toast.makeText(
+                                    this,
+                                    it[false],
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                onBackPressed()
                             }
-                        })
-                    } else {
-                        Toast.makeText(
-                            this,
-                            "Please check your connection and try again.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
 
-
+                        }
+                    })
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Please check your connection and try again.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-            } else {
-                Toast.makeText(
-                    this@ScanActivity,
-                    "Please select or add a photo",
-                    Toast.LENGTH_LONG
-                ).show()
+
+            }
+
+        } else {
+            Toast.makeText(
+                this@ScanActivity,
+                "Please select or add a photo",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 

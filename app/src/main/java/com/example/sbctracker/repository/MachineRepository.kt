@@ -3,15 +3,15 @@ package com.example.sbctracker.repository
 import android.util.Log
 import androidx.lifecycle.LiveData
 import com.example.sbctracker.DAO.MachineDao
-import com.example.sbctracker.models.Machine
+import com.example.sbctracker.models.Outlet
 
 
 class MachineRepository (private val machineDao: MachineDao){
-    val allMachines: LiveData<List<Machine>> = machineDao.getMachines()
+    val allMachines: LiveData<List<Outlet>> = machineDao.getMachines()
 
-    suspend fun insert(machine: Machine) {
-        machineDao.insert(machine)
-        Log.i("Inserting machine","Machine Repository, $machine")
+    suspend fun insert(outlet: Outlet) {
+        machineDao.insert(outlet)
+        Log.i("Inserting machine","Machine Repository, $outlet")
     }
 
     suspend fun setPosted(id: Long) {

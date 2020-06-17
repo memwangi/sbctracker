@@ -30,9 +30,9 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: UserRepository
     val user: LiveData<User>
 
-    private val _toastMessage = MutableLiveData<Event<Boolean>>()
+    private val _toastMessage = MutableLiveData<Event<Pair<Boolean, String>>>()
 
-    val toastMesage: LiveData<Event<Boolean>>
+    val toastMessage: LiveData<Event<Pair<Boolean, String>>>
         get() = _toastMessage
 
     init {
@@ -72,6 +72,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                     .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
 
             try {
+                Log.i("User Info", "Getting details")
                 var data = TraceNetwork.api.getUserDetails(security_key, body).await()
                 Log.i("TAG", data.phone)
                 var user = User(
@@ -109,19 +110,36 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                         .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
 
                 // Handle location updates
-                TraceNetwork.api.login(security_key,body).enqueue(object: Callback<String>{
+                TraceNetwork.api.login(security_key, body).enqueue(object : Callback<String> {
                     override fun onFailure(call: Call<String>, t: Throwable) {
-                        println("Error while sending request" + t.message)
-
+                        println()
+                        requestMessage(
+                                Pair(
+                                    false,
+                                    "Error while signing in: ${t.message}. Please try again."
+                                )
+                            )
                     }
 
                     override fun onResponse(call: Call<String>, response: Response<String>) {
-                        Log.i("User login","""Response: ${response.code()} ${response.body().toString()}""")
-                        if (response.code() == 200) {
-                            requestMessage(true)
+                        Log.i(
+                            "User login",
+                            """Response: ${response.code()} ${response.body().toString()}"""
+                        )
+                        when (response.code()) {
+                            200 -> requestMessage(Pair(true, "Logged in successfully"))
 
-                        }
-                        else { requestMessage(false)
+                            403 -> requestMessage(
+
+                                Pair(
+                                    false,
+                                    "Failed. Already logged in on another account."
+                                )
+                            )
+
+                            else -> {
+                                requestMessage(Pair(false, "Login failed: Your phone number or password is incorrect."))
+                            }
                         }
 
                     }
@@ -147,20 +165,23 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                         .toRequestBody("Content-Type, application/json".toMediaTypeOrNull())
 
                 // Handle location updates
-                TraceNetwork.api.logout(security_key,body).enqueue(object: Callback<String>{
+                TraceNetwork.api.logout(security_key, body).enqueue(object : Callback<String> {
                     override fun onFailure(call: Call<String>, t: Throwable) {
                         println("Error while sending request" + t.message)
+                        requestMessage(Pair(false, "Error while sending request: ${t.message}"))
 
                     }
 
                     override fun onResponse(call: Call<String>, response: Response<String>) {
-                        Log.i("User logout","""Response: ${response.code()} ${response.body().toString()}""")
+                        Log.i(
+                            "User logout",
+                            """Response: ${response.code()} ${response.body().toString()}"""
+                        )
                         if (response.isSuccessful) {
-                            requestMessage(true)
+                            requestMessage(Pair(true, "Success"))
 
-                        }
-                        else {
-                            requestMessage(false)
+                        } else {
+                            requestMessage(Pair(false, "Failed"))
                         }
                     }
 
@@ -169,7 +190,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun requestMessage(message: Boolean) {
+    fun requestMessage(message: Pair<Boolean, String>) {
         viewModelScope.launch {
             withContext(Dispatchers.Main) {
                 _toastMessage.setValue(Event(message))   // Trigger the event by setting a new Event as a new value

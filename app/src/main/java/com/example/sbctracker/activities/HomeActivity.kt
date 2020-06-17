@@ -8,12 +8,15 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.view.View
+import android.widget.ProgressBar
 import android.widget.Toast
 import android.widget.Toolbar
 import androidx.annotation.RequiresApi
@@ -34,6 +37,9 @@ import com.google.android.gms.location.*
 import com.google.zxing.client.android.Intents
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.android.synthetic.main.activity_home.*
+import kotlinx.android.synthetic.main.activity_scan.*
+import kotlinx.coroutines.delay
+import org.joda.time.DateTime
 import java.util.concurrent.TimeUnit
 
 class HomeActivity : AppCompatActivity() {
@@ -44,10 +50,12 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var supervisorID: String
     private lateinit var toolbar: Toolbar
     private var TAG = "HomeActivity"
+    private lateinit var mProgressBar: ProgressBar
     private var WORKER_TAG = "Location Worker"
     private var locationUpdateState = false
     private lateinit var lastLocationViewModel: LastLocationViewModel
     private lateinit var identifier: String
+    private var dateTimeNow = DateTime.now()
 
 
     companion object {
@@ -70,6 +78,8 @@ class HomeActivity : AppCompatActivity() {
         lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
 
+        mProgressBar = progressBarHome
+
         // Get ID from shared preferences
         var id = UniqueDeviceID.getID(this)
         id?.let {
@@ -79,9 +89,9 @@ class HomeActivity : AppCompatActivity() {
             it?.let {
                 // Identifier is the phone number. Used to identify the user/device when the imei is not available.
                 this@HomeActivity.runOnUiThread {
+                    supervisorID = it.id.toString()
                     supervisorText.text = it.supervisor
                     username.text = it.name
-                    supervisorID = it.id.toString()
                     imeiTextView.text = identifier
                 }
 
@@ -129,36 +139,56 @@ class HomeActivity : AppCompatActivity() {
                 logout()
                 true
             }
+
+            R.id.refresh -> {
+
+                mProgressBar.visibility = View.VISIBLE
+                Handler().postDelayed({
+                    requestLocationPermission(identifier)
+                }, 3000)
+
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
     private fun startWorker(imei: String) {
-        //Start tracking location updates
-        if (SaveSharedPreference.getLoggedStatus(applicationContext)) {
-            if (!isWorkScheduled(WorkManager.getInstance().getWorkInfosByTag(WORKER_TAG).get())) {
-                //If there is now work scheduled then do
-                val constraints = Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-
-                val data = Data.Builder()
-                data.putString("identifier", imei)
-
-                val repeatingRequest =
-                    PeriodicWorkRequestBuilder<LocationTrackingWorker>(10, TimeUnit.MINUTES)
-                        .setConstraints(constraints)
-                        .setInputData(data.build())
+        val hour = dateTimeNow.hourOfDay().get()
+        // Can only run from 8 till 6 in the evening.
+        if(hour in 8..18) {
+            // Incase user hit refresh
+            mProgressBar.visibility = View.GONE
+            //Start tracking location updates
+            if (SaveSharedPreference.getLoggedStatus(applicationContext)) {
+                if (!isWorkScheduled(WorkManager.getInstance().getWorkInfosByTag(WORKER_TAG).get())) {
+                    //If there is now work scheduled then do
+                    val constraints = Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build()
 
-                WorkManager.getInstance().enqueueUniquePeriodicWork(
-                    WORKER_TAG,
-                    ExistingPeriodicWorkPolicy.REPLACE,
-                    repeatingRequest
-                )
+                    val data = Data.Builder()
+                    data.putString("identifier", imei)
+
+                    val repeatingRequest =
+                        PeriodicWorkRequestBuilder<LocationTrackingWorker>(15, TimeUnit.MINUTES)
+                            .setConstraints(constraints)
+                            .setBackoffCriteria(BackoffPolicy.LINEAR,PeriodicWorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
+                            .setInputData(data.build())
+                            .build()
+
+                    WorkManager.getInstance().enqueueUniquePeriodicWork(
+                        WORKER_TAG,
+                        ExistingPeriodicWorkPolicy.REPLACE,
+                        repeatingRequest
+                    )
+                }
             }
+        } else {
+            logout()
         }
-    }
+        }
+
 
     private fun stopWorker() {
         WorkManager.getInstance().cancelAllWorkByTag(WORKER_TAG)
@@ -178,9 +208,9 @@ class HomeActivity : AppCompatActivity() {
     private fun logout() {
         stopWorker()
         userViewModel.logout(identifier)
-        userViewModel.toastMesage.observe(this, Observer { it ->
+        userViewModel.toastMessage.observe(this, Observer { it ->
             it.getContentIfNotHandled()?.let {
-                if (it) {
+                if (it.first) {
                     // Set LoggedIn status to false
                     SaveSharedPreference.setLoggedIn(applicationContext, false)
                     val intent = Intent(applicationContext, LoginActivity::class.java)
@@ -188,7 +218,7 @@ class HomeActivity : AppCompatActivity() {
                     startActivity(intent)
                 } else {
                     Toast.makeText(
-                        applicationContext, "Failed. Please try again",
+                        applicationContext, "Failed. Please try again.",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -200,11 +230,17 @@ class HomeActivity : AppCompatActivity() {
         moveTaskToBack(true)
     }
 
+    override fun onResume() {
+        super.onResume()
+        requestLocationPermission(identifier)
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_CHECK_SETTINGS -> if (resultCode == Activity.RESULT_OK) {
                 locationUpdateState = true
+                startWorker(identifier)
             }
 
             REQUEST_SCAN_CONFIRM -> {
@@ -252,6 +288,7 @@ class HomeActivity : AppCompatActivity() {
                             HomeActivity.REQUEST_PHONE_STATE
                         )
                     }
+                    scanIntent.putExtra("superID", supervisorID)
                     scanIntent.putExtra("Result", content)
                     scanIntent.putExtra("identifier", identifier)
                     startActivity(scanIntent)
@@ -272,7 +309,7 @@ class HomeActivity : AppCompatActivity() {
                 android.Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            startWorker(identifier)
+            turnOnGPS(identifier)
 
         } else {
             ActivityCompat.requestPermissions(
@@ -285,6 +322,34 @@ class HomeActivity : AppCompatActivity() {
             )
         }
 
+    }
+
+    private fun turnOnGPS(identifier: String){
+        locationRequest = LocationRequest()
+        var task = LocationServices.getSettingsClient(this)
+            .checkLocationSettings(
+                LocationSettingsRequest.Builder()
+                    .addLocationRequest(locationRequest)
+                    .setAlwaysShow(true)
+                    .build())
+
+        task.addOnSuccessListener {
+            startWorker(identifier)
+        }
+        task.addOnFailureListener { e ->
+            if (e is ResolvableApiException) {
+                // Location settings are not satisfied, but this can be fixed
+                // by showing the user a dialog.
+                try {
+                    // Ask user to turn location
+                    // and check the result in onActivityResult().
+                    e.startResolutionForResult(this@HomeActivity,
+                        REQUEST_CHECK_SETTINGS)
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    // Ignore the error
+                }
+            }
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -304,7 +369,7 @@ class HomeActivity : AppCompatActivity() {
 
         if (requestCode == REQUEST_LOCATION_PERMISSION) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startWorker(identifier)
+                turnOnGPS(identifier)
             }
         }
     }

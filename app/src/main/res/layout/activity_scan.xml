@@ -37,7 +37,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/proxima"
-                    android:text="TextView"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"
                     android:textStyle="bold"
                     tools:text="98325232445" />
@@ -111,7 +110,6 @@
                 app:smsp_selectedItemListColor="@color/colorPrimary"
                 app:smsp_typeface="proximanovaemibold.ttf" />
 
-
             <com.google.android.material.textfield.TextInputLayout
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
@@ -119,7 +117,6 @@
                 android:hint="Name"
                 app:hintAnimationEnabled="true"
                 app:hintEnabled="true">
-
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/locationName"
                     android:layout_width="match_parent"
@@ -134,12 +131,27 @@
                 android:hint="Phone Number"
                 app:hintAnimationEnabled="true"
                 app:hintEnabled="true">
-
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/locationPhone"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="number"
+                    android:textColorHint="@color/colorPrimaryDark" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Physical Address"
+                app:helperText="e.g Mombasa Rd, Opposite Capital Center"
+                app:hintAnimationEnabled="true"
+                app:hintEnabled="true">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/outletLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textAutoComplete"
                     android:textColorHint="@color/colorPrimaryDark" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -152,7 +164,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="32dp"
-            android:text="Submit"
+            android:text="@string/submit"
             android:textAlignment="center"
             android:textColor="#fff"
             android:textSize="14sp"
@@ -180,7 +192,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/linearLayout"
             app:layout_constraintVertical_bias="1.0" />
-
 
         <ProgressBar
             android:id="@+id/progressBar"

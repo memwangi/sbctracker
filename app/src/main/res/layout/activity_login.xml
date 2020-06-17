@@ -102,8 +102,17 @@
                 android:text="Login"
                 />
 
+
+
         </RelativeLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:layout_gravity="center"
+            android:text="Version 3.3"
+            />
 
     </LinearLayout>
 </ScrollView>

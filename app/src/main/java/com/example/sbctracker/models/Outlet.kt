@@ -7,19 +7,20 @@ import androidx.room.PrimaryKey
 import org.joda.time.DateTime
 
 @Entity(tableName = "table_machines", indices = [Index(value = ["barcode"], unique = true)])
-data class Machine(
+data class Outlet(
     @PrimaryKey
     val id: Long = 0,
-    val locationName: String,
+    val outletName: String,
     val phoneNumber: String,
     val description: String,
     val barcode: String,
+    val outletLocation: String,
     var businessType: String,
     val longitude: String,
     val latitude: String,
     val dateScanned: Long,
     val path: String,
-    val IMEI: String,
+    val identifier: String,
     val posted: Boolean,
     val supervisorID: String
 ) {

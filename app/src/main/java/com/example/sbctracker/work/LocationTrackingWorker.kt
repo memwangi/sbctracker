@@ -1,17 +1,18 @@
 package com.example.sbctracker.work
 
-import android.Manifest
-import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.IntentSender
-import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationManager
+import android.os.Looper
+import android.provider.Settings
 import android.util.Log
+import androidx.core.content.ContextCompat.startActivity
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.example.sbctracker.activities.HomeActivity
 import com.example.sbctracker.db.SbcTrackerDatabase
 import com.example.sbctracker.models.LastLocation
 import com.example.sbctracker.repository.LastLocationRepository
@@ -21,9 +22,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.joda.time.DateTime
 import retrofit2.HttpException
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 
 class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
@@ -33,65 +36,79 @@ class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
     private lateinit var locationRequest: LocationRequest
     private var mContext = context
     private var locationUpdateState = false
+    private lateinit var locationManager: LocationManager
     private lateinit var mLastLocation: Location
     private val TAG = "Location Worker"
+    private var dateTimeNow = DateTime.now()
 
 
     override fun doWork(): Result {
         Log.d(TAG, "doWork: Done")
         Log.d(TAG, "onStartJob: STARTING JOB..")
 
+
         // Repository
         var identifier = inputData.getString("identifier")
         val locationDao = SbcTrackerDatabase.getDatabase(applicationContext).lastLocationDao()
         val repository = LastLocationRepository(locationDao)
+        val hour = dateTimeNow.hourOfDay().get()
+        // Can only run from 8 till 6 in the evening.
+        if(hour in 7..18) {
 
-        try {
-            fusedLocationClient = LocationServices.getFusedLocationProviderClient(mContext)
 
-            locationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    super.onLocationResult(locationResult)
-                    // Update location
-                    var location = locationResult.locations
-                    mLastLocation = location.last()
-                    // mLastLocation = locationResult.lastLocation!!
-                    val name = getCompleteAddressString(
-                        mLastLocation.latitude,
-                        mLastLocation.longitude
+            try {
+                fusedLocationClient = LocationServices.getFusedLocationProviderClient(mContext)
+
+                locationCallback = object : LocationCallback() {
+                    override fun onLocationResult(locationResult: LocationResult) {
+                        super.onLocationResult(locationResult)
+                        // Update location
+                        var location = locationResult.locations
+                        mLastLocation = location.last()
+                        // mLastLocation = locationResult.lastLocation!!
+                        val name = getCompleteAddressString(
+                            mLastLocation.latitude,
+                            mLastLocation.longitude
+                        )
+                        if (identifier != null) {
+                            sendLocationUpdates(mLastLocation, identifier, repository, name)
+                            location.clear()
+                        }
+                        Log.i(TAG, "You are at $name")
+                    }
+                }
+
+                locationRequest = LocationRequest()
+                locationRequest.interval = TimeUnit.MINUTES.toMillis(10)
+                locationRequest.fastestInterval = TimeUnit.MINUTES.toMillis(5)
+                locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+
+                val task = fusedLocationClient.lastLocation
+
+                task.addOnSuccessListener {
+                    locationUpdateState = true
+                    fusedLocationClient.requestLocationUpdates(
+                        locationRequest,
+                        locationCallback,
+                        Looper.getMainLooper()
                     )
-                    if (identifier != null) {
-                        sendLocationUpdates(mLastLocation, identifier, repository, name)
-                    }
-                    Log.i(TAG, "You are at $name")
                 }
-            }
-            locationRequest = LocationRequest()
-            locationRequest.interval = 1000 * 500
-            locationRequest.fastestInterval = 200000
-            locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-
-            val task = fusedLocationClient.lastLocation
-
-            task.addOnSuccessListener {
-                locationUpdateState = true
-                fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
-            }
-            task.addOnFailureListener { e ->
-                if (e is ResolvableApiException) {
-                    // Location settings are not satisfied, but this can be fixed
-                    // by showing the user a dialog.
-                    try {
-                        // Show the dialog by calling startResolutionForResult(),
-                        // and check the result in onActivityResult().
-                        e.resolution
-                    } catch (sendEx: IntentSender.SendIntentException) {
-                        // Ignore the error
+                task.addOnFailureListener { e ->
+                    if (e is ResolvableApiException) {
+                        // Location settings are not satisfied, but this can be fixed
+                        // by showing the user a dialog.
+                        try {
+                            // Show the dialog by calling startResolutionForResult(),
+                            // and check the result in onActivityResult().
+                            e.resolution
+                        } catch (sendEx: IntentSender.SendIntentException) {
+                            // Ignore the error
+                        }
                     }
                 }
+            } catch (e: HttpException) {
+                return Result.retry()
             }
-        } catch (e: HttpException) {
-            return Result.retry()
         }
         return Result.success()
     }
