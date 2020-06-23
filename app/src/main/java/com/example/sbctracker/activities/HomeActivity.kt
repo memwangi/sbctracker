@@ -98,11 +98,12 @@ class HomeActivity : AppCompatActivity() {
             }
         })
 
-        // Once user details are available, then start transmitting data
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         //Request location permission and start worker
         requestLocationPermission(identifier)
+
+        // Once user details are available, then start transmitting data
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         // Floating action button
         btnScan.setOnClickListener {
@@ -156,7 +157,7 @@ class HomeActivity : AppCompatActivity() {
     private fun startWorker(imei: String) {
         val hour = dateTimeNow.hourOfDay().get()
         // Can only run from 8 till 6 in the evening.
-        if(hour in 8..18) {
+        if(hour in 1..23) {
             // Incase user hit refresh
             mProgressBar.visibility = View.GONE
             //Start tracking location updates

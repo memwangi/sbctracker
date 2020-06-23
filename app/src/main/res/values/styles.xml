@@ -9,16 +9,6 @@
         <item name="fontFamily">@font/proxima</item>
     </style>
 
-    <style name="CustomProgressBarTheme">
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-    </style>
-
-    <style name="ButtonCancel">
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-    </style>
-
 
     <style name="MapTheme" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
         <!-- Customize your theme here. -->
@@ -29,73 +19,9 @@
         <item name="fontFamily">@font/proxima</item>
     </style>
 
-    <style name="customButton" parent="Widget.AppCompat.Button">
-        <item name="android:background">@drawable/bg_round</item>
-    </style>
-
-    <style name="CustomFab" parent="Widget.Design.FloatingActionButton">
-        <item name="android:color">@color/colorPrimaryDark</item>
-
-    </style>
-
-    <style name="App2Theme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-    </style>
-
-    <style name="ToolBarStyle" parent="Widget.AppCompat.Toolbar">
-        <item name="android:background">@color/colorPrimaryDark</item>
-        <item name="android:title">"Item Details"</item>
-        <item name="titleTextAppearance">@style/TitleTextAppearance</item>
-    </style>
-
-    <style name="TitleTextAppearance" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
-        <item name="android:textSize">18sp</item>
-        <item name="android:textColor">#fff</item>
-    </style>
-
     <!--Imported from shrine-->
 
     <!-- Base application theme. -->
-    <style name="Theme.Shrine" parent="Theme.MaterialComponents.Light.DarkActionBar.Bridge">
-        <!-- Customize your theme here. -->
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:textColorPrimary">@color/colorPrimary</item>
-    </style>
-
-    <style name="Theme.Shrine.Autumn" parent="Theme.Shrine">
-        <item name="colorPrimary">#FFCF44</item>
-        <item name="colorPrimaryDark">#FD9725</item>
-        <item name="colorAccent">#FD9725</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorError">#FD9725</item>
-    </style>
-
-    <style name="Widget.Shrine.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-        <item name="hintTextAppearance">@style/TextAppearance.Shrine.TextInputLayout.HintText</item>
-        <item name="hintTextColor">@color/colorPrimary</item>
-        <item name="android:paddingBottom">8dp</item>
-        <item name="android:textColorHint">?attr/colorPrimaryDark</item>
-        <item name="boxStrokeColor">@color/ghostwhite</item>
-    </style>
-
-    <style name="TextAppearance.Shrine.TextInputLayout.HintText" parent="TextAppearance.MaterialComponents.Subtitle2">
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-    </style>
-
-    <style name="Widget.Shrine.Button" parent="Widget.MaterialComponents.Button">
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-        <item name="backgroundTint">?attr/colorPrimaryDark</item>
-    </style>
-
-    <style name="Widget.Shrine.Button.TextButton" parent="Widget.MaterialComponents.Button.TextButton">
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-    </style>
 
     <style name="Widget.Shrine.Toolbar" parent="Widget.AppCompat.Toolbar">
         <item name="android:background">?attr/colorPrimaryDark</item>
@@ -112,11 +38,6 @@
         <item name="textAllCaps">false</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">?android:attr/textColorPrimary</item>
-    </style>
-
-    <style name="Widget.Shrine.Backdrop" parent="">
-        <item name="android:background">?attr/colorAccent</item>
-        <item name="android:paddingBottom">100dp</item>
     </style>
 
 

@@ -28,7 +28,6 @@ import com.example.sbctracker.viewmodel.UserViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import kotlinx.android.synthetic.main.activity_device_confirm.*
-import kotlinx.android.synthetic.main.activity_device_confirm.btnCancel
 import kotlinx.android.synthetic.main.activity_device_confirm.btnSubmit
 import kotlinx.android.synthetic.main.activity_home.*
 import kotlinx.android.synthetic.main.activity_scan.*
@@ -97,11 +96,6 @@ class DeviceConfirmActivity : AppCompatActivity() {
             }
 
         })
-
-
-        btnCancel.setOnClickListener {
-            onBackPressed()
-        }
 
         btnSubmit.setOnClickListener {
 
@@ -226,7 +220,7 @@ class DeviceConfirmActivity : AppCompatActivity() {
                                 var resultData = jsonObject.getJSONObject("data")
                                 // If there is a response, update the UI with details of the scanned item
                                 Log.i("Device Confirm", "$resultData")
-                                confirmDescription.text = resultData.getString("description")
+                                confirmChannel.text = resultData.getString("description")
                                 barcodeConfirm.text = barcode
                                 customerType.text = resultData.getString("type")
                                 confirmPhone.text = resultData.getString("phone")
@@ -238,6 +232,7 @@ class DeviceConfirmActivity : AppCompatActivity() {
                         // Item already been scanned within the last 24 hours.
                         this@DeviceConfirmActivity.runOnUiThread {
                             allDetails.visibility = View.GONE
+                            btnSubmit.visibility = View.GONE
                             notFoundTextView.visibility = View.VISIBLE
                             notFoundTextView.setText(R.string.alreadyScanned)
                         }
@@ -246,6 +241,7 @@ class DeviceConfirmActivity : AppCompatActivity() {
                     else -> {
                         this@DeviceConfirmActivity.runOnUiThread {
                             allDetails.visibility = View.GONE
+                            btnSubmit.visibility = View.GONE
                             notFoundTextView.visibility = View.VISIBLE
                             notFoundTextView.setText(R.string.ItemDoesNotExist)
                         }

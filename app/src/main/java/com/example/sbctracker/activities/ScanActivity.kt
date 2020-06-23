@@ -35,11 +35,9 @@ import kotlin.collections.ArrayList
 
 class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     private lateinit var barcode: String
-    var REQUEST_TAKE_PHOTO = 2
     private var filePath: String? = null
     private var categoryList: MutableList<String>? = null
     private var channelList: MutableList<String>? = null
-
     private lateinit var identifier: String
     private lateinit var machineViewModel: MachineViewModel
     private lateinit var userViewModel: UserViewModel
@@ -50,6 +48,12 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     private var customerType: String? = null
     private var channelType: String? = null
     private lateinit var supervisorID: String
+
+
+    companion object {
+        const val REQUEST_TAKE_PHOTO = 2
+
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
