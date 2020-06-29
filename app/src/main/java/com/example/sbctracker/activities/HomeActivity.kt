@@ -27,7 +27,7 @@ import com.example.sbctracker.utils.UniqueDeviceID
 import com.example.sbctracker.viewmodel.LastLocationViewModel
 import com.example.sbctracker.viewmodel.MachineViewModel
 import com.example.sbctracker.viewmodel.UserViewModel
-import com.example.sbctracker.work.LocationTrackingWorker
+import com.example.sbctracker.work.LocationWorker
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.zxing.client.android.Intents
@@ -366,7 +366,7 @@ class HomeActivity : AppCompatActivity() {
                         data.putString("identifier", identifier)
 
                         val repeatingRequest =
-                            PeriodicWorkRequestBuilder<LocationTrackingWorker>(15, TimeUnit.MINUTES)
+                            PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
                                 .setConstraints(constraints)
                                 .setBackoffCriteria(
                                     BackoffPolicy.LINEAR,

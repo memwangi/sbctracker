@@ -10,8 +10,7 @@ data class LastLocation(
     val id: Long = 0,
     val longitude: String,
     val latitude: String,
-    val imei: String,
-    val name: String
+    val imei: String
 ) {
 
 }

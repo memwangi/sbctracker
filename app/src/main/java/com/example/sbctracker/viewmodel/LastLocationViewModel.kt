@@ -1,11 +1,14 @@
 package com.example.sbctracker.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.location.LocationManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.example.sbctracker.SBCLocationManager
 import com.example.sbctracker.db.SbcTrackerDatabase
 import com.example.sbctracker.models.LastLocation
 import com.example.sbctracker.repository.LastLocationRepository
@@ -22,11 +25,14 @@ class LastLocationViewModel(application: Application) : AndroidViewModel(applica
     val location: MutableLiveData<LastLocation> = MutableLiveData()
 
     var lastLocation: LiveData<LastLocation>
+    var context: Context  = application.applicationContext
+
+
 
 
     init {
         val locationDao = SbcTrackerDatabase.getDatabase(application).lastLocationDao()
-        repository = LastLocationRepository(locationDao)
+        repository = LastLocationRepository(locationDao,context)
         lastLocation = repository._lastLocation
     }
 

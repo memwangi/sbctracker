@@ -1,10 +1,17 @@
 package com.example.sbctracker.repository
 
+import android.app.Application
+import android.content.Context
+import android.location.Address
+import android.location.Geocoder
+import android.location.Location
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import com.example.sbctracker.DAO.LastLocationDao
+import com.example.sbctracker.SBCLocationManager
+import com.example.sbctracker.TraceApplication
 import com.example.sbctracker.api.TraceNetwork
 import com.example.sbctracker.api.TraceNetworkService
 import com.example.sbctracker.db.SbcTrackerDatabase
@@ -22,20 +29,37 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.*
 
-class LastLocationRepository(private val locationDao: LastLocationDao) {
+class LastLocationRepository(private val locationDao: LastLocationDao, context: Context) {
 
     var _lastLocation = locationDao.getRecentLocation()
+    private var locationManager = SBCLocationManager(context)
     /**
      * Store the recent location updates.
      * */
 
-    suspend fun addLocation(lastLocation: LastLocation) {
-        withContext(Dispatchers.IO) {
-            // Context Dispatcher.IO is optimized for disk and network input output off the main thread.
-            //Insert the last location item
-            Log.i("Inserting Location","Last Location Stored")
-            locationDao.insert(lastLocation)
+    // Identifier is the id of the device being tracked. It's passed through the work manager.
+    fun addLocation(identifier: String) {
+        locationManager.getUpdatedLocation {
+            onLocationReceived(it, identifier)
+        }
+    }
+
+    private fun onLocationReceived(location: Location?, identifier: String) = GlobalScope.launch {
+        location?.let {
+            withContext(Dispatchers.IO) {
+                val tracedLocation = LastLocation(
+                    0,
+                    it.longitude.toString(),
+                    it.latitude.toString(),
+                    identifier
+                )
+                //Insert the last location item
+                Log.i("Inserting Location","Last Location Stored")
+                locationDao.insert(tracedLocation)
+                sendLocationUpdate(tracedLocation)
+            }
         }
     }
 
