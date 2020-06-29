@@ -31,12 +31,11 @@ import java.util.concurrent.TimeUnit
 
 class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
     Worker(context, workerParams) {
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     private lateinit var locationCallback: LocationCallback
     private lateinit var locationRequest: LocationRequest
     private var mContext = context
     private var locationUpdateState = false
-    private lateinit var locationManager: LocationManager
     private lateinit var mLastLocation: Location
     private val TAG = "Location Worker"
     private var dateTimeNow = DateTime.now()
@@ -53,18 +52,16 @@ class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
         val repository = LastLocationRepository(locationDao)
         val hour = dateTimeNow.hourOfDay().get()
         // Can only run from 8 till 6 in the evening.
-        if(hour in 7..18) {
+        if(hour in 1..18) {
 
 
             try {
-                fusedLocationClient = LocationServices.getFusedLocationProviderClient(mContext)
 
                 locationCallback = object : LocationCallback() {
                     override fun onLocationResult(locationResult: LocationResult) {
                         super.onLocationResult(locationResult)
                         // Update location
-                        var location = locationResult.locations
-                        mLastLocation = location.last()
+                        mLastLocation = locationResult.lastLocation
                         // mLastLocation = locationResult.lastLocation!!
                         val name = getCompleteAddressString(
                             mLastLocation.latitude,
@@ -72,7 +69,6 @@ class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
                         )
                         if (identifier != null) {
                             sendLocationUpdates(mLastLocation, identifier, repository, name)
-                            location.clear()
                         }
                         Log.i(TAG, "You are at $name")
                     }
@@ -80,7 +76,7 @@ class LocationTrackingWorker(context: Context, workerParams: WorkerParameters) :
 
                 locationRequest = LocationRequest()
                 locationRequest.interval = TimeUnit.MINUTES.toMillis(10)
-                locationRequest.fastestInterval = TimeUnit.MINUTES.toMillis(5)
+                locationRequest.fastestInterval = TimeUnit.MINUTES.toMillis(7)
                 locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
 
                 val task = fusedLocationClient.lastLocation

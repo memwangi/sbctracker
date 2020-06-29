@@ -57,14 +57,15 @@ class DeviceConfirmActivity : AppCompatActivity() {
     private lateinit var lastLocationViewModel: LastLocationViewModel
     private var filePath: String? = null
     private lateinit var mProgressBar: ProgressBar
-    var REQUEST_TAKE_PHOTO = 2
+    private val REQUEST_TAKE_PHOTO = 2
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_device_confirm)
+
+        mProgressBar = progressBarConfirm
         // Initialize text fields
-        mProgressBar = confirmProgressBar
         machineViewModel = ViewModelProvider(this).get(MachineViewModel::class.java)
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
         lastLocationViewModel = ViewModelProvider(this).get(LastLocationViewModel::class.java)
@@ -220,11 +221,11 @@ class DeviceConfirmActivity : AppCompatActivity() {
                                 var resultData = jsonObject.getJSONObject("data")
                                 // If there is a response, update the UI with details of the scanned item
                                 Log.i("Device Confirm", "$resultData")
-                                confirmChannel.text = resultData.getString("description")
+                                channelConfirm.text = resultData.getString("description")
                                 barcodeConfirm.text = barcode
-                                customerType.text = resultData.getString("type")
-                                confirmPhone.text = resultData.getString("phone")
-                                confirmName.text = resultData.getString("name")
+                                typeConfirm.text = resultData.getString("type")
+                                phoneConfirm.text = resultData.getString("phone")
+                                nameConfirm.text = resultData.getString("name")
                             }
                         }
                     }

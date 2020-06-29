@@ -6,11 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.provider.Settings
-import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
@@ -19,7 +16,6 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
 import android.widget.Toolbar
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
@@ -37,8 +33,6 @@ import com.google.android.gms.location.*
 import com.google.zxing.client.android.Intents
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.android.synthetic.main.activity_home.*
-import kotlinx.android.synthetic.main.activity_scan.*
-import kotlinx.coroutines.delay
 import org.joda.time.DateTime
 import java.util.concurrent.TimeUnit
 
@@ -48,14 +42,12 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationRequest: LocationRequest
     private lateinit var supervisorID: String
-    private lateinit var toolbar: Toolbar
+    private var mContext: Context? = null
     private var TAG = "HomeActivity"
     private lateinit var mProgressBar: ProgressBar
-    private var WORKER_TAG = "Location Worker"
     private var locationUpdateState = false
     private lateinit var lastLocationViewModel: LastLocationViewModel
     private lateinit var identifier: String
-    private var dateTimeNow = DateTime.now()
 
 
     companion object {
@@ -79,6 +71,7 @@ class HomeActivity : AppCompatActivity() {
         userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
 
         mProgressBar = progressBarHome
+        mContext = applicationContext
 
         // Get ID from shared preferences
         var id = UniqueDeviceID.getID(this)
@@ -98,12 +91,13 @@ class HomeActivity : AppCompatActivity() {
             }
         })
 
+        // Once user details are available, then start transmitting data
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         //Request location permission and start worker
         requestLocationPermission(identifier)
 
-        // Once user details are available, then start transmitting data
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
 
         // Floating action button
         btnScan.setOnClickListener {
@@ -154,60 +148,10 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun startWorker(imei: String) {
-        val hour = dateTimeNow.hourOfDay().get()
-        // Can only run from 8 till 6 in the evening.
-        if(hour in 1..23) {
-            // Incase user hit refresh
-            mProgressBar.visibility = View.GONE
-            //Start tracking location updates
-            if (SaveSharedPreference.getLoggedStatus(applicationContext)) {
-                if (!isWorkScheduled(WorkManager.getInstance().getWorkInfosByTag(WORKER_TAG).get())) {
-                    //If there is now work scheduled then do
-                    val constraints = Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-
-                    val data = Data.Builder()
-                    data.putString("identifier", imei)
-
-                    val repeatingRequest =
-                        PeriodicWorkRequestBuilder<LocationTrackingWorker>(15, TimeUnit.MINUTES)
-                            .setConstraints(constraints)
-                            .setBackoffCriteria(BackoffPolicy.LINEAR,PeriodicWorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
-                            .setInputData(data.build())
-                            .build()
-
-                    WorkManager.getInstance().enqueueUniquePeriodicWork(
-                        WORKER_TAG,
-                        ExistingPeriodicWorkPolicy.REPLACE,
-                        repeatingRequest
-                    )
-                }
-            }
-        } else {
-            logout()
-        }
-        }
-
-
-    private fun stopWorker() {
-        WorkManager.getInstance().cancelAllWorkByTag(WORKER_TAG)
-    }
-
-    private fun isWorkScheduled(workInfos: List<WorkInfo>?): Boolean {
-        var running = false
-        if (workInfos == null || workInfos.isEmpty()) return false
-        for (workStatus in workInfos) {
-            running =
-                workStatus.state == WorkInfo.State.RUNNING || workStatus.state == WorkInfo.State.ENQUEUED
-        }
-        return running
-    }
 
 
     private fun logout() {
-        stopWorker()
+        BackgroundTracker.stopWorker()
         userViewModel.logout(identifier)
         userViewModel.toastMessage.observe(this, Observer { it ->
             it.getContentIfNotHandled()?.let {
@@ -231,9 +175,11 @@ class HomeActivity : AppCompatActivity() {
         moveTaskToBack(true)
     }
 
-    override fun onResume() {
-        super.onResume()
-        requestLocationPermission(identifier)
+    private fun switchOnWorker() = mContext?.let {
+        BackgroundTracker.startWorker(
+        identifier, progressBar = mProgressBar, context = it,
+        logout = ::logout
+    )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -241,7 +187,8 @@ class HomeActivity : AppCompatActivity() {
         when (requestCode) {
             REQUEST_CHECK_SETTINGS -> if (resultCode == Activity.RESULT_OK) {
                 locationUpdateState = true
-                startWorker(identifier)
+                switchOnWorker()
+
             }
 
             REQUEST_SCAN_CONFIRM -> {
@@ -325,17 +272,18 @@ class HomeActivity : AppCompatActivity() {
 
     }
 
-    private fun turnOnGPS(identifier: String){
+    private fun turnOnGPS(identifier: String) {
         locationRequest = LocationRequest()
         var task = LocationServices.getSettingsClient(this)
             .checkLocationSettings(
                 LocationSettingsRequest.Builder()
                     .addLocationRequest(locationRequest)
                     .setAlwaysShow(true)
-                    .build())
+                    .build()
+            )
 
         task.addOnSuccessListener {
-            startWorker(identifier)
+            switchOnWorker()
         }
         task.addOnFailureListener { e ->
             if (e is ResolvableApiException) {
@@ -344,8 +292,10 @@ class HomeActivity : AppCompatActivity() {
                 try {
                     // Ask user to turn location
                     // and check the result in onActivityResult().
-                    e.startResolutionForResult(this@HomeActivity,
-                        REQUEST_CHECK_SETTINGS)
+                    e.startResolutionForResult(
+                        this@HomeActivity,
+                        REQUEST_CHECK_SETTINGS
+                    )
                 } catch (sendEx: IntentSender.SendIntentException) {
                     // Ignore the error
                 }
@@ -374,4 +324,75 @@ class HomeActivity : AppCompatActivity() {
             }
         }
     }
+
+    object BackgroundTracker {
+        val WORKER_TAG = "Location Worker"
+
+
+        fun isWorkScheduled(workInfos: List<WorkInfo>?): Boolean {
+            var running = false
+            if (workInfos == null || workInfos.isEmpty()) return false
+            for (workStatus in workInfos) {
+                running =
+                    workStatus.state == WorkInfo.State.RUNNING || workStatus.state == WorkInfo.State.ENQUEUED
+            }
+            return running
+        }
+
+        inline fun startWorker(
+            identifier: String,
+            progressBar: ProgressBar,
+            context: Context,
+            logout: () -> Unit
+        ) {
+            val dateTimeNow = DateTime.now()
+            val hour = dateTimeNow.hourOfDay().get()
+            // Can only run from 8 till 6 in the evening.
+            if (hour in 1..23) {
+                // Incase user hit refresh
+                progressBar.visibility = View.GONE
+                //Start tracking location updates
+                if (SaveSharedPreference.getLoggedStatus(context)) {
+                    if (!isWorkScheduled(
+                            WorkManager.getInstance().getWorkInfosByTag(WORKER_TAG).get()
+                        )
+                    ) {
+                        //If there is now work scheduled then do
+                        val constraints = Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+
+                        val data = Data.Builder()
+                        data.putString("identifier", identifier)
+
+                        val repeatingRequest =
+                            PeriodicWorkRequestBuilder<LocationTrackingWorker>(15, TimeUnit.MINUTES)
+                                .setConstraints(constraints)
+                                .setBackoffCriteria(
+                                    BackoffPolicy.LINEAR,
+                                    PeriodicWorkRequest.MIN_BACKOFF_MILLIS,
+                                    TimeUnit.MILLISECONDS
+                                )
+                                .setInputData(data.build())
+                                .build()
+
+                        WorkManager.getInstance().enqueueUniquePeriodicWork(
+                            WORKER_TAG,
+                            ExistingPeriodicWorkPolicy.REPLACE,
+                            repeatingRequest
+                        )
+                    }
+                }
+            } else {
+                logout()
+            }
+        }
+
+        fun stopWorker() {
+            WorkManager.getInstance().cancelAllWorkByTag(WORKER_TAG)
+        }
+
+    }
 }
+
+

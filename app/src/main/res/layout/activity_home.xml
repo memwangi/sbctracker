@@ -254,20 +254,25 @@
 
     </LinearLayout>
 
-    <ProgressBar
+    <androidx.core.widget.ContentLoadingProgressBar
         android:id="@+id/progressBarHome"
         style="@android:style/Widget.Material.ProgressBar"
         android:layout_width="50dp"
         android:layout_height="50dp"
-        android:background="@color/colorPrimary"
-        android:padding="10dp"
+        android:layout_marginTop="16dp"
+        android:padding="8dp"
+        android:backgroundTint="@color/ghostwhite"
+        android:background="@drawable/circle_background"
         android:progressDrawable="@drawable/progressdrawable"
         android:visibility="gone"
+        android:layout_gravity="center"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.75" />
+        app:layout_constraintVertical_bias="0.75"
+        />
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
