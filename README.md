@@ -15,7 +15,7 @@ The client needed a system to help fix these flaws. I created the android app wi
 
 - Simple login, with telephone number and password. The user accounts are already preregistered in the web portal. Once the user logs in and accepts all required permissions(Location, storage, and camera), the workmanager starts transmitting their location.
 <p align="center">
-  <img src="Screenshot_20200628-092410.png" width="350">
+  <img src="scrrenshoti.jpg" width="350">
 </p>
 
 ### Register New Customer
