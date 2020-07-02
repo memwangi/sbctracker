@@ -348,7 +348,7 @@ class HomeActivity : AppCompatActivity() {
             val dateTimeNow = DateTime.now()
             val hour = dateTimeNow.hourOfDay().get()
             // Can only run from 8 till 6 in the evening.
-            if (hour in 1..23) {
+            if (hour in 8..18) {
                 // Incase user hit refresh
                 progressBar.visibility = View.GONE
                 //Start tracking location updates

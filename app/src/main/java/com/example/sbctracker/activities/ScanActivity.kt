@@ -55,7 +55,6 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
     }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan)
@@ -87,14 +86,17 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
         btnSubmit.setOnClickListener {
             // Post the item details as a new item
+            btnSubmit.isEnabled = false
             if (!locationPhone.text.isNullOrEmpty() && !locationName.text.isNullOrEmpty()
                 && channelType != null && customerType != null && !outletLocation.text.isNullOrEmpty()) {
                 if (isPhoneValid(locationPhone.text)) {
                     // Clear the error
                     locationPhone.error = null
                     addMachine(latitude, longitude, supervisorID)
+
                 } else {
                     locationPhone.error = "Please enter a correct phone number e.g 0712300000"
+                    btnSubmit.isEnabled = true
                 }
             } else {
                 Toast.makeText(
@@ -102,8 +104,10 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
                     "All fields are required. Please fill all entries.",
                     Toast.LENGTH_LONG
                 ).show()
+                btnSubmit.isEnabled = true
             }
         }
+
 
         // Launch dialog to select from gallery or take photo
         uploadImgBtn.setOnClickListener {
@@ -238,6 +242,9 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
                     progressBar.visibility = View.VISIBLE
                     machineViewModel.insert(machine)
                     machineViewModel.postNewItem(machine)
+                    if(!btnSubmit.isEnabled) {
+                        btnSubmit.isEnabled = true
+                    }
                     machineViewModel.toastMesage.observe(this, Observer { it ->
                         it.getContentIfNotHandled()?.let {
                             if (it.containsKey(true)) {
@@ -274,6 +281,7 @@ class ScanActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
             }
 
         } else {
+            btnSubmit.isEnabled = true
             Toast.makeText(
                 this@ScanActivity,
                 "Please select or add a photo",

@@ -31,6 +31,9 @@ import kotlinx.android.synthetic.main.activity_device_confirm.*
 import kotlinx.android.synthetic.main.activity_device_confirm.btnSubmit
 import kotlinx.android.synthetic.main.activity_home.*
 import kotlinx.android.synthetic.main.activity_scan.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -99,12 +102,15 @@ class DeviceConfirmActivity : AppCompatActivity() {
         })
 
         btnSubmit.setOnClickListener {
-
+            btnSubmit.isEnabled = false
+            GlobalScope.launch {
+                delay(3000)
+            }
             // Post the item details as a new item
             if (filePath != null) {
 
                 mProgressBar.visibility = View.VISIBLE
-                var data =
+                val data =
                     serializeData(barcode, latitude, longitude, identifier, supervisorID.toLong())
                 machineViewModel.updateStockImage(filePath!!, barcode, data)
 
@@ -113,9 +119,11 @@ class DeviceConfirmActivity : AppCompatActivity() {
                         if (it.containsKey(true)) {
                             Toast.makeText(this, it[true], Toast.LENGTH_LONG).show()
                             mProgressBar.visibility = View.GONE
+                            btnSubmit.isEnabled = true
                             onBackPressed()
                         } else {
                             mProgressBar.visibility = View.GONE
+                            btnSubmit.isEnabled = true
                             Toast.makeText(
                                 this,
                                 it[false],
@@ -126,6 +134,7 @@ class DeviceConfirmActivity : AppCompatActivity() {
                     }
                 })
             } else {
+                btnSubmit.isEnabled = true
                 Toast.makeText(
                     this,
                     "Please add an image to continue",
